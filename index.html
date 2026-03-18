@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>FL2/FL3 Hotel Registration – SRM Office</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --primary: #1a3a5c;
+      --accent: #c8860a;
+      --accent-light: #f5e6c8;
+      --bg: #f4f6f9;
+      --surface: #ffffff;
+      --border: #d0d8e4;
+      --text: #1e2d3d;
+      --muted: #6b7a8d;
+      --error: #c0392b;
+      --success: #1a7a4a;
+      --radius: 8px;
+    }
+    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 0 0 80px; }
+    .page-header { background: linear-gradient(135deg, var(--primary) 0%, #0d2540 100%); color: #fff; padding: 32px 24px 28px; text-align: center; border-bottom: 4px solid var(--accent); }
+    .page-header .badge { display: inline-block; background: var(--accent); color: #fff; font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; padding: 4px 12px; border-radius: 20px; margin-bottom: 12px; }
+    .page-header h1 { font-family: 'Playfair Display', serif; font-size: clamp(20px, 4vw, 30px); font-weight: 600; margin-bottom: 6px; }
+    .page-header p { font-size: 13px; opacity: 0.75; font-weight: 300; }
+    .form-wrap { max-width: 900px; margin: 32px auto; padding: 0 16px; }
+    .section-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 24px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+    .section-head { background: var(--primary); color: #fff; padding: 12px 20px; display: flex; align-items: center; gap: 10px; }
+    .section-head .num { background: var(--accent); color: #fff; width: 24px; height: 24px; border-radius: 50%; font-size: 12px; font-weight: 700; display: grid; place-items: center; flex-shrink: 0; }
+    .section-head h2 { font-size: 14px; font-weight: 600; letter-spacing: 0.5px; }
+    .section-body { padding: 20px; }
+    .grid { display: grid; gap: 16px; }
+    .grid-2 { grid-template-columns: repeat(2, 1fr); }
+    .grid-3 { grid-template-columns: repeat(3, 1fr); }
+    .col-span-2 { grid-column: span 2; }
+    .col-span-3 { grid-column: span 3; }
+    @media (max-width: 640px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } .col-span-2, .col-span-3 { grid-column: span 1; } }
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    .field label { font-size: 12px; font-weight: 600; color: var(--primary); text-transform: uppercase; letter-spacing: 0.4px; }
+    .field label .req { color: var(--error); margin-left: 2px; }
+    .field input, .field select, .field textarea { width: 100%; border: 1.5px solid var(--border); border-radius: 6px; padding: 9px 12px; font-size: 14px; font-family: 'Inter', sans-serif; color: var(--text); background: #fff; transition: border-color 0.2s, box-shadow 0.2s; outline: none; }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(26,58,92,0.12); }
+    .field input.error, .field select.error, .field textarea.error { border-color: var(--error); }
+    .field .hint { font-size: 11px; color: var(--muted); }
+    .field .err-msg { font-size: 11px; color: var(--error); display: none; }
+    .field.has-error .err-msg { display: block; }
+    /* ── NAMED UPLOAD SLOTS ── */
+    .doc-upload-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+    @media (max-width: 640px) { .doc-upload-grid { grid-template-columns: 1fr; } }
+    .doc-slot { border: 1.5px solid var(--border); border-radius: 8px; overflow: hidden; background: #fafbfd; transition: border-color 0.2s; }
+    .doc-slot.uploaded { border-color: var(--success); background: #f0faf4; }
+    .doc-slot.required-missing { border-color: var(--error); background: #fff5f5; }
+    .doc-slot-head { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px 8px; border-bottom: 1px solid var(--border); }
+    .doc-slot.uploaded .doc-slot-head { border-bottom-color: #b8e0c8; }
+    .doc-slot.required-missing .doc-slot-head { border-bottom-color: #f5c6c6; }
+    .doc-num { background: var(--primary); color: #fff; font-size: 10px; font-weight: 700; min-width: 20px; height: 20px; border-radius: 4px; display: grid; place-items: center; flex-shrink: 0; margin-top: 1px; }
+    .doc-slot.uploaded .doc-num { background: var(--success); }
+    .doc-slot-title { font-size: 12px; font-weight: 600; color: var(--primary); line-height: 1.4; }
+    .doc-slot.uploaded .doc-slot-title { color: var(--success); }
+    .doc-req-badge { display: inline-block; font-size: 9px; font-weight: 700; background: #fdeaea; color: var(--error); padding: 1px 5px; border-radius: 3px; letter-spacing: 0.5px; margin-left: 4px; vertical-align: middle; }
+    .doc-slot-body { padding: 8px 12px 10px; }
+    .doc-drop-area { display: flex; align-items: center; gap: 8px; cursor: pointer; position: relative; }
+    .doc-drop-area input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+    .doc-drop-icon { font-size: 20px; flex-shrink: 0; }
+    .doc-drop-text { font-size: 12px; color: var(--muted); }
+    .doc-drop-text strong { color: var(--primary); }
+    .doc-file-info { display: flex; align-items: center; gap: 6px; background: #d4edda; border-radius: 5px; padding: 5px 8px; font-size: 11px; color: #155724; }
+    .doc-file-info .remove-doc { margin-left: auto; cursor: pointer; background: none; border: none; color: var(--error); font-size: 14px; line-height: 1; flex-shrink: 0; }
+    .doc-err { font-size: 11px; color: var(--error); margin-top: 4px; display: none; }
+    .doc-slot.required-missing .doc-err { display: block; }
+    .submit-area { text-align: center; padding: 8px 0 0; }
+    .btn-submit { background: var(--primary); color: #fff; border: none; padding: 14px 48px; border-radius: 8px; font-size: 15px; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer; transition: background 0.2s, transform 0.1s; letter-spacing: 0.3px; }
+    .btn-submit:hover { background: #0d2540; }
+    .btn-submit:active { transform: scale(0.98); }
+    .btn-submit:disabled { background: #9aa5b4; cursor: not-allowed; }
+    #toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%); padding: 12px 28px; border-radius: 8px; font-size: 14px; font-weight: 500; z-index: 9999; display: none; max-width: 90vw; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.2); }
+    #toast.success { background: var(--success); color: #fff; display: block; }
+    #toast.error { background: var(--error); color: #fff; display: block; }
+    .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.4); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 8px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<div class="page-header">
+  <div class="badge">TASMAC – Tamil Nadu</div>
+  <h1>FL2 / FL3 Licensee Details</h1>
+
+</div>
+
+<div class="form-wrap">
+<form id="hotelForm" novalidate>
+
+
+
+  <!-- 1. LICENSEE INFORMATION -->
+  <div class="section-card">
+    <div class="section-head"><span class="num">1</span><h2>Licensee Information</h2></div>
+    <div class="section-body">
+      <div class="grid grid-3">
+        <div class="field">
+          <label>Type of Licensee <span class="req">*</span></label>
+          <select name="type_of_licensee" required>
+            <option value="">— Select Type —</option>
+            <option>FL2</option><option>FL3</option><option>FL3AA</option>
+          </select>
+          <span class="err-msg">Please select licensee type</span>
+        </div>
+        <div class="field col-span-2">
+          <label>Name of FL2/FL3 Licensee <span class="req">*</span></label>
+          <input type="text" name="licensee_name" placeholder="Full hotel / licensee name" required/>
+          <span class="err-msg">Licensee name is required</span>
+        </div>
+        <div class="field">
+          <label>Star Rating</label>
+          <select name="star_rating">
+            <option value="">— Select Rating —</option>
+            <option>NON STAR</option><option>1 Star</option><option>2 Star</option>
+            <option>3 Star</option><option>4 Star</option><option>5 Star</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Trade Name</label>
+          <input type="text" name="trade_name" placeholder="Trade / brand name"/>
+        </div>
+        <div class="field">
+          <label>Owner Name <span class="req">*</span></label>
+          <input type="text" name="owner_name" placeholder="Full owner name" required/>
+          <span class="err-msg">Owner name is required</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. LICENSE DETAILS -->
+  <div class="section-card">
+    <div class="section-head"><span class="num">2</span><h2>License Details</h2></div>
+    <div class="section-body">
+      <div class="grid grid-3">
+        <div class="field">
+          <label>License No. <span class="req">*</span></label>
+          <input type="text" name="license_no" placeholder="e.g. FL3 No.16/2000-2001" required/>
+          <span class="err-msg">License number is required</span>
+        </div>
+        <div class="field">
+          <label>License Issue Date</label>
+          <input type="date" name="license_issue_date"/>
+        </div>
+        <div class="field">
+          <label>License Expiry Date</label>
+          <input type="date" name="license_expiry_date"/>
+        </div>
+        <div class="field">
+          <label>H.O Letter No.</label>
+          <input type="text" name="ho_letter_no" placeholder="e.g. TASHO/0204/2025-B-1"/>
+        </div>
+        <div class="field">
+          <label>H.O Letter Date</label>
+          <input type="date" name="ho_letter_date"/>
+        </div>
+        <div class="field">
+          <label>Possession Limit (Units)</label>
+          <input type="number" name="possession_limit" placeholder="e.g. 800" min="0"/>
+        </div>
+        <div class="field">
+          <label>Security Deposit to CPE (Rs.)</label>
+          <input type="number" name="security_deposit" placeholder="e.g. 50000" min="0"/>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. TAX & IDENTITY -->
+  <div class="section-card">
+    <div class="section-head"><span class="num">3</span><h2>Tax &amp; Identity</h2></div>
+    <div class="section-body">
+      <div class="grid grid-3">
+        <div class="field">
+          <label>GSTIN</label>
+          <input type="text" name="gstin" placeholder="e.g. 33AABCH3604F1Z7" maxlength="15"/>
+        </div>
+        <div class="field">
+          <label>PAN</label>
+          <input type="text" name="pan" placeholder="e.g. AABCH3604F" maxlength="10"/>
+        </div>
+        <div class="field">
+          <label>TIN</label>
+          <input type="text" name="tin" placeholder="Tax Identification Number"/>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. ADDRESS & LOCATION -->
+  <div class="section-card">
+    <div class="section-head"><span class="num">4</span><h2>Address &amp; Location</h2></div>
+    <div class="section-body">
+      <div class="grid grid-2">
+        <div class="field col-span-2">
+          <label>Address Line 1 <span class="req">*</span></label>
+          <input type="text" name="address1" placeholder="Street / building / landmark" required/>
+          <span class="err-msg">Address is required</span>
+        </div>
+        <div class="field">
+          <label>Address Line 2</label>
+          <input type="text" name="address2" placeholder="Taluk / area"/>
+        </div>
+        <div class="field">
+          <label>Address Line 3</label>
+          <input type="text" name="address3" placeholder="Pincode / additional info"/>
+        </div>
+        <div class="field">
+          <label>Revenue Taluk <span class="req">*</span></label>
+          <select name="revenue_taluk" required>
+            <option value="">— Select Taluk —</option>
+            <option>Agastheeswaram</option><option>Alandur</option><option>Alangudi</option><option>Alangulam</option><option>Alathur</option><option>Ambasamudram</option><option>Ambattur</option><option>Ambur</option><option>Aminjikarai</option><option>Anaicut</option><option>Anaimalai</option><option>Anchetty</option><option>Andimadam</option><option>Annur</option><option>Anthiyur</option><option>Arakkonam</option><option>Aranthangi</option><option>Aravakurichi</option><option>Arcot</option><option>Ariyalur</option><option>Arni</option><option>Aruppukottai</option><option>Athoor</option><option>Attur</option><option>Aundipatti</option><option>Avadi</option><option>Avinashi</option><option>Avudaiyarkoil</option><option>Ayanavaram</option><option>Bargur</option><option>Bhavani</option><option>Bhuvanagiri</option><option>Bodinayakanur</option><option>Budalur</option><option>Chengalpattu</option><option>Chengam</option><option>Cheranmahadevi</option><option>Chetpet</option><option>Cheyyar</option><option>Cheyyur</option><option>Chidambaram</option><option>Chinnaselam</option><option>Coimbatore North</option><option>Coimbatore South</option><option>Coonoor</option><option>Cuddalore</option><option>Denkanikottai</option><option>Devakottai</option><option>Dharapuram</option><option>Dharmapuri</option><option>Dindigul East</option><option>Dindigul West</option><option>Edappady</option><option>Egmore</option><option>Eral</option><option>Erode</option><option>Ettayapuram</option><option>Ganagavalli</option><option>Gandarvakottai</option><option>Gingee</option><option>Gobichettipalayam</option><option>Gudalur</option><option>Gudiyatham</option><option>Guindy</option><option>Gujiliamparai</option><option>Gummidipoondi</option><option>Harur</option><option>Hosur</option><option>Ilayankudi</option><option>Illupur</option><option>Jamunamarathoor</option><option>K V Kuppam</option><option>Kadaladi</option><option>Kadavur</option><option>Kadayampatti</option><option>Kadayanallur</option><option>Kalaiyarkovil</option><option>Kalasapakkam</option><option>Kalavai</option><option>Kalkulam</option><option>Kallakurichi</option><option>Kalligudi</option><option>Kalvarayan Hills</option><option>Kamuthi</option><option>Kancheepuram</option><option>Kandachipuram</option><option>Kangeyam</option><option>Karaikudi</option><option>Karambakudi</option><option>Karimangalam</option><option>Kariyapatti</option><option>Karur</option><option>Katpadi</option><option>Kattumannarkoil</option><option>Kayathar</option><option>Keelakarai</option><option>Killiyoor</option><option>Kilpennathur</option><option>Kilvelur</option><option>Kinathukadavu</option><option>Kodaikanal</option><option>Kodumudi</option><option>Kolli Hills</option><option>Koothanallur</option><option>Kotagiri</option><option>Kovilpatty</option><option>Krishnagiri</option><option>Krishnarayapuram</option><option>Kudavasal</option><option>Kulathur</option><option>Kulithalai</option><option>Kumarapalayam</option><option>Kumbakonam</option><option>Kundah</option><option>Kundrathur</option><option>Kunnam</option><option>Kurinjipadi</option><option>Kuthalam</option><option>Lalgudi</option><option>Madathukkulam</option><option>Madhavaram</option><option>Madhurantakam</option><option>Madukarai</option><option>Madurai East</option><option>Madurai North</option><option>Madurai South</option><option>Madurai West</option><option>Maduravoyal</option><option>Mambalam</option><option>Manamadurai</option><option>Manamelkudi</option><option>Manapparai</option><option>Manmangalam</option><option>Mannachanallur</option><option>Mannargudi</option><option>Manur</option><option>Marakkanam</option><option>Marungapuri</option><option>Mayiladuthurai</option><option>Melmalaiyanur</option><option>Melur</option><option>Mettupalayam</option><option>Mettur</option><option>Modakkurichi</option><option>Mohanur</option><option>Mudukulathur</option><option>Musiri</option><option>Muthupettai</option><option>Mylapore</option><option>Nagapattinam</option><option>Nallampalli</option><option>Namakkal</option><option>Nambiyur</option><option>Nanguneri</option><option>Nannilam</option><option>Natham</option><option>Natrampalli</option><option>Needamangalam</option><option>Nemili</option><option>Nilakottai</option><option>Oddenchatram</option><option>Omalur</option><option>Orathanad</option><option>Ottapidaram</option><option>Palacode</option><option>Palani</option><option>Palayamkottai</option><option>Palladam</option><option>Pallavaram</option><option>Pallipattu</option><option>Pandalur</option><option>Panruti</option><option>Papanasam</option><option>Pappireddipatti</option><option>Paramakudi</option><option>Paramathi Velur</option><option>Pattukottai</option><option>Pennagaram</option><option>Peraiyur</option><option>Perambalur</option><option>Perambur</option><option>Peravurani</option><option>Periyakulam</option><option>Pernambut</option><option>Perundurai</option><option>Perur</option><option>Pethanaickenpalayam</option><option>Pochampalli</option><option>Pollachi</option><option>Polur</option><option>Ponnamaravathi</option><option>Ponneri</option><option>Poonamallee</option><option>Pudukkottai</option><option>Pugalur</option><option>Pursawalkam</option><option>R. K. Pettai</option><option>Radhapuram</option><option>Rajapalayam</option><option>Rajasingamangalam</option><option>Ramanathapuram</option><option>Rameswaram</option><option>Rasipuram</option><option>Salem</option><option>Salem South</option><option>Salem West</option><option>Sankarankovil</option><option>Sankarapuram</option><option>Sankari</option><option>Sathyamangalam</option><option>Sattankulam</option><option>Sattur</option><option>Sendamangalam</option><option>Sendurai</option><option>Shencottai</option><option>Sholinganallur</option><option>Sholingur</option><option>Shoolagiri</option><option>Singampunari</option><option>Sirkazhi</option><option>Sivagangai</option><option>Sivagiri</option><option>Sivakasi</option><option>Srimushnam</option><option>Sriperumbudur</option><option>Srirangam</option><option>Srivaikundam</option><option>Srivlliputhur</option><option>Sulur</option><option>Tambaram</option><option>Tenkasi</option><option>Thalaivasal</option><option>Thalavadi</option><option>Thandrampet</option><option>Thanjavur</option><option>Tharangambadi</option><option>Theni</option><option>Thiruchirapalli-West</option><option>Thirukkalukundram</option><option>Thirukkuvalai</option><option>Thirumangalam</option><option>Thirumayam</option><option>Thirupattur</option><option>Thirupparankundram</option><option>Thirupporur</option><option>Thiruppuvanam</option><option>Thiruthuraipoondi</option><option>Thiruvadani</option><option>Thiruvaiyaru</option><option>Thiruvarur</option><option>Thiruvattar</option><option>Thiruvengadam</option><option>Thiruvennainallur</option><option>Thiruverumbur</option><option>Thiruvidaimaruthur</option><option>Thiruvonam</option><option>Thiruvottiyur</option><option>Thoothukudi</option><option>Thottiam</option><option>Thovalai</option><option>Thuraiyur</option><option>Tindivanam</option><option>Tiruchendur</option><option>Tiruchengode</option><option>Tiruchirappalli East</option><option>Tiruchuli</option><option>Tirukkoilur</option><option>Tirunelveli</option><option>Tirupattur</option><option>Tiruppur North</option><option>Tiruppur South</option><option>Tiruttani</option><option>Tiruvallur</option><option>Tiruvannamalai</option><option>Tisayanvilai</option><option>Titagudi</option><option>Tondiarpet</option><option>Udayarpalayam</option><option>Udhagai</option><option>Udumalpet</option><option>Ulundurpet</option><option>Usilampatti</option><option>Uthamapalayam</option><option>Uthangarai</option><option>Uthiramerur</option><option>Uthukkuli</option><option>Uthukottai</option><option>V.K.Pudur</option><option>Vadipatti</option><option>Valangaiman</option><option>Valapady</option><option>Valparai</option><option>Vanapuram</option><option>Vandalur</option><option>Vandavasi</option><option>Vaniyambadi</option><option>Vanur</option><option>Vedaranyam</option><option>Vedasandur</option><option>Velachery</option><option>Vellore</option><option>Vembakkam</option><option>Vembakkottai</option><option>Veppanthattai</option><option>Veppur</option><option>Vikkiravandi</option><option>Vilathikulam</option><option>Vilavancode</option><option>Viluppuram</option><option>Viralimalai</option><option>Virudhunagar</option><option>Vridhachalam</option><option>Walajabad</option><option>Walajah</option><option>Watrap</option><option>Yercaud</option>
+          </select>
+          <span class="err-msg">Please select Revenue Taluk</span>
+        </div>
+        <div class="field">
+          <label>Revenue District <span class="req">*</span></label>
+          <select name="revenue_district" required>
+            <option value="">— Select District —</option>
+            <option>Ariyalur</option><option>Chengalpattu</option><option>Chennai</option>
+            <option>Coimbatore</option><option>Cuddalore</option><option>Dharmapuri</option>
+            <option>Dindigul</option><option>Erode</option><option>Kallakurichi</option>
+            <option>Kancheepuram</option><option>Kanniyakumari</option><option>Karur</option>
+            <option>Krishnagiri</option><option>Madurai</option><option>Mayiladuthurai</option>
+            <option>Nagapattinam</option><option>Namakkal</option><option>Nilgiris</option>
+            <option>Perambalur</option><option>Pudukkottai</option><option>Ramanathapuram</option>
+            <option>Ranipet</option><option>Salem</option><option>Sivagangai</option>
+            <option>Tenkasi</option><option>Thanjavur</option><option>Theni</option>
+            <option>Thiruchirappalli</option><option>Thirupathur</option><option>Thiruvarur</option>
+            <option>Thoothukudi</option><option>Tirunelveli</option><option>Tiruppur</option>
+            <option>Tiruvallur</option><option>Tiruvannamalai</option><option>Vellore</option>
+            <option>Viluppuram</option><option>Virudhunagar</option>
+          </select>
+          <span class="err-msg">Please select Revenue District</span>
+        </div>
+        <div class="field">
+          <label>Latitude</label>
+          <input type="number" name="latitude" step="any" placeholder="e.g. 11.6327"/>
+        </div>
+        <div class="field">
+          <label>Longitude</label>
+          <input type="number" name="longitude" step="any" placeholder="e.g. 78.1266"/>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. CONTACT -->
+  <div class="section-card">
+    <div class="section-head"><span class="num">5</span><h2>Contact Information</h2></div>
+    <div class="section-body">
+      <div class="grid grid-3">
+        <div class="field">
+          <label>Email ID <span class="req">*</span></label>
+          <input type="email" name="email" placeholder="hotel@example.com" required/>
+          <span class="err-msg">Valid email required</span>
+        </div>
+        <div class="field">
+          <label>Phone No. <span class="req">*</span></label>
+          <input type="tel" name="phone" placeholder="10-digit mobile number" maxlength="10" required/>
+          <span class="err-msg">Valid phone number required</span>
+        </div>
+        <div class="field">
+          <label>Alternate Contact Person</label>
+          <input type="text" name="alt_contact_name" placeholder="Alternate person name"/>
+        </div>
+        <div class="field">
+          <label>Alternate Phone No.</label>
+          <input type="tel" name="alt_phone" placeholder="10-digit mobile number" maxlength="10"/>
+        </div>
+        <div class="field">
+          <label>Purchase Person Name</label>
+          <input type="text" name="purchase_person_name" placeholder="Person who purchases liquor"/>
+        </div>
+        <div class="field">
+          <label>Purchase Person Phone No.</label>
+          <input type="tel" name="purchase_person_phone" placeholder="10-digit mobile number" maxlength="10"/>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. DEPOT INFO -->
+  <div class="section-card">
+    <div class="section-head"><span class="num">6</span><h2>Depot Information</h2></div>
+    <div class="section-body">
+      <div class="grid grid-2">
+        <div class="field">
+          <label>Allocated Depot Name by TASMAC</label>
+          <select name="allocated_depot">
+            <option value="">— Select Depot —</option>
+            <option>Ambattur-I</option><option>Ambattur-II</option><option>Ambattur-III</option>
+            <option>Arakkonam</option><option>Coimbatore(N)</option><option>Coimbatore(S)</option>
+            <option>Cuddalore</option><option>Dharmapuri</option><option>Dindigul</option>
+            <option>Erode</option><option>Gobi</option><option>Kancheepuram</option>
+            <option>Kangeyam</option><option>Karur</option><option>Krishnagiri</option>
+            <option>Madurai(E)</option><option>Madurai(W)</option><option>Nagapattinam</option>
+            <option>Nagercoil</option><option>Namakkal</option><option>Ooty</option>
+            <option>Perambular</option><option>Pollachi</option><option>Pudukottai</option>
+            <option>Ramnad</option><option>Salem</option><option>Salem(W)-Santhiyur</option>
+            <option>Sivaganga</option><option>Thanjavur</option><option>Theni</option>
+            <option>Tirumazhasai-I</option><option>Tirumazhasai-II</option><option>Tirumazhasai-III</option>
+            <option>Tirunelveli</option><option>Tiruppur</option><option>Tiruvallur</option>
+            <option>Tiruvannamalai</option><option>Tiruvarur</option><option>Trichy</option>
+            <option>Tuticorin</option><option>Vellore</option><option>Villupuram</option>
+            <option>Virudunagar</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Currently Stocking Depot</label>
+          <select name="current_depot">
+            <option value="">— Select Depot —</option>
+            <option>Ambattur-I</option><option>Ambattur-II</option><option>Ambattur-III</option>
+            <option>Arakkonam</option><option>Coimbatore(N)</option><option>Coimbatore(S)</option>
+            <option>Cuddalore</option><option>Dharmapuri</option><option>Dindigul</option>
+            <option>Erode</option><option>Gobi</option><option>Kancheepuram</option>
+            <option>Kangeyam</option><option>Karur</option><option>Krishnagiri</option>
+            <option>Madurai(E)</option><option>Madurai(W)</option><option>Nagapattinam</option>
+            <option>Nagercoil</option><option>Namakkal</option><option>Ooty</option>
+            <option>Perambular</option><option>Pollachi</option><option>Pudukottai</option>
+            <option>Ramnad</option><option>Salem</option><option>Salem(W)-Santhiyur</option>
+            <option>Sivaganga</option><option>Thanjavur</option><option>Theni</option>
+            <option>Tirumazhasai-I</option><option>Tirumazhasai-II</option><option>Tirumazhasai-III</option>
+            <option>Tirunelveli</option><option>Tiruppur</option><option>Tiruvallur</option>
+            <option>Tiruvannamalai</option><option>Tiruvarur</option><option>Trichy</option>
+            <option>Tuticorin</option><option>Vellore</option><option>Villupuram</option>
+            <option>Virudunagar</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 7. ATTACHMENTS -->
+  <div class="section-card">
+    <div class="section-head"><span class="num">7</span><h2>Required Documents &amp; Attachments</h2></div>
+    <div class="section-body">
+      <p style="font-size:12px;color:var(--muted);margin-bottom:16px;">All files must be in <strong>PDF format only</strong> (max 10 MB each). Files will be saved in Google Drive under the hotel's name folder. <strong style="color:var(--error)">All 8 documents are required</strong> before submitting.</p>
+      <div class="doc-upload-grid" id="docGrid">
+
+        <!-- Slot 1 -->
+        <div class="doc-slot" id="slot-0">
+          <div class="doc-slot-head">
+            <span class="doc-num">1</span>
+            <span class="doc-slot-title">Renewal Acknowledgement for Accounting Year 2026–2027 <span class="doc-req-badge">REQUIRED</span></span>
+          </div>
+          <div class="doc-slot-body">
+            <div class="doc-drop-area" id="drop-0">
+              <input type="file" accept="application/pdf" data-slot="0" class="doc-input"/>
+              <span class="doc-drop-icon">📄</span>
+              <span class="doc-drop-text"><strong>Click to upload</strong> PDF only</span>
+            </div>
+            <div class="doc-err">This document is required.</div>
+          </div>
+        </div>
+
+        <!-- Slot 2 -->
+        <div class="doc-slot" id="slot-1">
+          <div class="doc-slot-head">
+            <span class="doc-num">2</span>
+            <span class="doc-slot-title">TASMAC Head Office Letter for Purchasing Liquor <span class="doc-req-badge">REQUIRED</span></span>
+          </div>
+          <div class="doc-slot-body">
+            <div class="doc-drop-area" id="drop-1">
+              <input type="file" accept="application/pdf" data-slot="1" class="doc-input"/>
+              <span class="doc-drop-icon">📄</span>
+              <span class="doc-drop-text"><strong>Click to upload</strong> PDF only</span>
+            </div>
+            <div class="doc-err">This document is required.</div>
+          </div>
+        </div>
+
+        <!-- Slot 3 -->
+        <div class="doc-slot" id="slot-2">
+          <div class="doc-slot-head">
+            <span class="doc-num">3</span>
+            <span class="doc-slot-title">Proceeding – Commissioner of Prohibition &amp; Excise Dept. Letter <span class="doc-req-badge">REQUIRED</span></span>
+          </div>
+          <div class="doc-slot-body">
+            <div class="doc-drop-area" id="drop-2">
+              <input type="file" accept="application/pdf" data-slot="2" class="doc-input"/>
+              <span class="doc-drop-icon">📄</span>
+              <span class="doc-drop-text"><strong>Click to upload</strong> PDF only</span>
+            </div>
+            <div class="doc-err">This document is required.</div>
+          </div>
+        </div>
+
+        <!-- Slot 4 -->
+        <div class="doc-slot" id="slot-3">
+          <div class="doc-slot-head">
+            <span class="doc-num">4</span>
+            <span class="doc-slot-title">License Letter <span class="doc-req-badge">REQUIRED</span></span>
+          </div>
+          <div class="doc-slot-body">
+            <div class="doc-drop-area" id="drop-3">
+              <input type="file" accept="application/pdf" data-slot="3" class="doc-input"/>
+              <span class="doc-drop-icon">📄</span>
+              <span class="doc-drop-text"><strong>Click to upload</strong> PDF only</span>
+            </div>
+            <div class="doc-err">This document is required.</div>
+          </div>
+        </div>
+
+        <!-- Slot 5 -->
+        <div class="doc-slot" id="slot-4">
+          <div class="doc-slot-head">
+            <span class="doc-num">5</span>
+            <span class="doc-slot-title">Fly Leaf of the Licensee <span class="doc-req-badge">REQUIRED</span></span>
+          </div>
+          <div class="doc-slot-body">
+            <div class="doc-drop-area" id="drop-4">
+              <input type="file" accept="application/pdf" data-slot="4" class="doc-input"/>
+              <span class="doc-drop-icon">📄</span>
+              <span class="doc-drop-text"><strong>Click to upload</strong> PDF only</span>
+            </div>
+            <div class="doc-err">This document is required.</div>
+          </div>
+        </div>
+
+        <!-- Slot 6 -->
+        <div class="doc-slot" id="slot-5">
+          <div class="doc-slot-head">
+            <span class="doc-num">6</span>
+            <span class="doc-slot-title">TIN No. – Commercial Department Letter <span class="doc-req-badge">REQUIRED</span></span>
+          </div>
+          <div class="doc-slot-body">
+            <div class="doc-drop-area" id="drop-5">
+              <input type="file" accept="application/pdf" data-slot="5" class="doc-input"/>
+              <span class="doc-drop-icon">📄</span>
+              <span class="doc-drop-text"><strong>Click to upload</strong> PDF only</span>
+            </div>
+            <div class="doc-err">Please upload a PDF file only.</div>
+          </div>
+        </div>
+
+        <!-- Slot 7 -->
+        <div class="doc-slot" id="slot-6">
+          <div class="doc-slot-head">
+            <span class="doc-num">7</span>
+            <span class="doc-slot-title">GST Registration Certificate <span class="doc-req-badge">REQUIRED</span></span>
+          </div>
+          <div class="doc-slot-body">
+            <div class="doc-drop-area" id="drop-6">
+              <input type="file" accept="application/pdf" data-slot="6" class="doc-input"/>
+              <span class="doc-drop-icon">📄</span>
+              <span class="doc-drop-text"><strong>Click to upload</strong> PDF only</span>
+            </div>
+            <div class="doc-err">Please upload a PDF file only.</div>
+          </div>
+        </div>
+
+        <!-- Slot 8 -->
+        <div class="doc-slot" id="slot-7">
+          <div class="doc-slot-head">
+            <span class="doc-num">8</span>
+            <span class="doc-slot-title">PAN Card (Hotel / Club / Trade Name) <span class="doc-req-badge">REQUIRED</span></span>
+          </div>
+          <div class="doc-slot-body">
+            <div class="doc-drop-area" id="drop-7">
+              <input type="file" accept="application/pdf" data-slot="7" class="doc-input"/>
+              <span class="doc-drop-icon">📄</span>
+              <span class="doc-drop-text"><strong>Click to upload</strong> PDF only</span>
+            </div>
+            <div class="doc-err">Please upload a PDF file only.</div>
+          </div>
+        </div>
+
+      </div><!-- /docGrid -->
+    </div>
+  </div>
+
+  <div class="submit-area">
+    <button type="submit" class="btn-submit" id="submitBtn">Submit Registration</button>
+    <p style="font-size:12px;color:var(--muted);margin-top:12px;">Data will be saved to the SRM Office Google Sheet. Fields marked * are mandatory.</p>
+  </div>
+
+</form>
+</div>
+
+<div id="toast"></div>
+
+<script>
+  // ══════════════════════════════════════════════════════
+  //  CONFIGURATION — Replace with your Apps Script URL
+  // ══════════════════════════════════════════════════════
+  const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbygm11WmWsRKg3aAsnxvSHGzryvM3DsmKLD4sYrW1pn2fPGpqIVREYUdo5ntboE8uf4/exec";
+  // Example: "https://script.google.com/macros/s/AKfycbxXXXXXX/exec"
+  // See the included google-apps-script.gs file for setup instructions.
+  // ══════════════════════════════════════════════════════
+
+  // FILE UPLOAD — Named slots
+  // Slot labels used as filenames in Google Drive
+  const DOC_LABELS = [
+    "1_Renewal_Acknowledgement_2026-2027",
+    "2_TASMAC_HO_Letter_Purchasing_Liquor",
+    "3_Commissioner_Prohibition_Excise_Letter",
+    "4_License_Letter",
+    "5_Fly_Leaf_of_Licensee",
+    "6_TIN_Commercial_Dept_Letter",
+    "7_GST_Registration_Certificate",
+    "8_PAN_Card"
+  ];
+  const REQUIRED_SLOTS = [0, 1, 2, 3, 4, 5, 6, 7]; // all slots are mandatory
+  const slotFiles = new Array(8).fill(null); // one file per slot
+
+  document.querySelectorAll('.doc-input').forEach(input => {
+    input.addEventListener('change', function() {
+      const idx = +this.dataset.slot;
+      const file = this.files[0];
+      if (!file) return;
+      if (file.type !== 'application/pdf') {
+        showToast('Only PDF files are accepted. Please re-upload slot ' + (idx+1), 'error');
+        this.value = '';
+        return;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        showToast('"' + file.name + '" exceeds 10 MB.', 'error');
+        this.value = '';
+        return;
+      }
+      slotFiles[idx] = file;
+      renderSlot(idx);
+    });
+  });
+
+  function renderSlot(idx) {
+    const slot = document.getElementById('slot-' + idx);
+    const drop = document.getElementById('drop-' + idx);
+    const file = slotFiles[idx];
+    slot.classList.remove('uploaded', 'required-missing');
+    if (file) {
+      slot.classList.add('uploaded');
+      drop.innerHTML =
+        '<div class="doc-file-info" style="width:100%">' +
+          '<span>✅</span>' +
+          '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + file.name + '</span>' +
+          '<span style="color:#155724;font-size:11px;white-space:nowrap">' + (file.size/1024).toFixed(1) + ' KB</span>' +
+          '<button class="remove-doc" data-slot="' + idx + '" title="Remove">✕</button>' +
+        '</div>';
+      drop.querySelector('.remove-doc').addEventListener('click', function(e) {
+        e.stopPropagation();
+        slotFiles[+this.dataset.slot] = null;
+        rebuildSlotInput(+this.dataset.slot);
+      });
+    }
+  }
+
+  function rebuildSlotInput(idx) {
+    const slot  = document.getElementById('slot-' + idx);
+    const drop  = document.getElementById('drop-' + idx);
+    slot.classList.remove('uploaded', 'required-missing');
+    drop.innerHTML =
+      '<input type="file" accept="application/pdf" data-slot="' + idx + '" class="doc-input"/>' +
+      '<span class="doc-drop-icon">📄</span>' +
+      '<span class="doc-drop-text"><strong>Click to upload</strong> PDF only</span>';
+    drop.querySelector('.doc-input').addEventListener('change', function() {
+      const i = +this.dataset.slot;
+      const f = this.files[0];
+      if (!f) return;
+      if (f.type !== 'application/pdf') { showToast('Only PDF files are accepted.', 'error'); this.value=''; return; }
+      if (f.size > 10*1024*1024) { showToast('"'+f.name+'" exceeds 10 MB.', 'error'); this.value=''; return; }
+      slotFiles[i] = f;
+      renderSlot(i);
+    });
+  }
+
+  // VALIDATION
+  function validate() {
+    let valid = true;
+    // Form fields
+    document.querySelectorAll('[required]').forEach(el => {
+      const field = el.closest('.field');
+      const isEmpty = el.value.trim() === '';
+      field.classList.toggle('has-error', isEmpty);
+      el.classList.toggle('error', isEmpty);
+      if (isEmpty) valid = false;
+    });
+    const emailEl = document.querySelector('[name="email"]');
+    if (emailEl && emailEl.value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailEl.value)) {
+      emailEl.closest('.field').classList.add('has-error');
+      emailEl.classList.add('error');
+      valid = false;
+    }
+    // Required document slots
+    REQUIRED_SLOTS.forEach(idx => {
+      const slot = document.getElementById('slot-' + idx);
+      if (!slotFiles[idx]) {
+        slot.classList.add('required-missing');
+        valid = false;
+      } else {
+        slot.classList.remove('required-missing');
+      }
+    });
+    return valid;
+  }
+
+  // FILE TO BASE64
+  function fileToBase64(file) {
+    return new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload  = () => res(r.result.split(',')[1]);
+      r.onerror = () => rej(new Error('File read failed'));
+      r.readAsDataURL(file);
+    });
+  }
+
+  // FORM SUBMIT
+  document.getElementById('hotelForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    if (!validate()) {
+      showToast('Please fill all required fields and upload all required documents.', 'error');
+      document.querySelector('.required-missing, .has-error')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>Uploading &amp; Submitting…';
+
+    const fd = new FormData(this);
+    const data = {};
+    fd.forEach((v, k) => data[k] = v);
+    data.submitted_at = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+
+    // Encode named document slots
+    const filesData = [];
+    for (let i = 0; i < slotFiles.length; i++) {
+      const file = slotFiles[i];
+      if (!file) continue;
+      try {
+        const b64 = await fileToBase64(file);
+        filesData.push({
+          slot: i,
+          label: DOC_LABELS[i],
+          name: DOC_LABELS[i] + '.pdf',
+          type: 'application/pdf',
+          data: b64
+        });
+      } catch { showToast('Could not read file: ' + file.name, 'error'); }
+    }
+    data.attachments = filesData;
+
+    try {
+      const resp = await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        body: JSON.stringify(data)
+      });
+      const result = await resp.json();
+      if (result.status === 'success') {
+        showToast('✅ Registration submitted successfully!', 'success');
+        document.getElementById('hotelForm').reset();
+        for (let i = 0; i < 8; i++) { slotFiles[i] = null; rebuildSlotInput(i); }
+      } else {
+        showToast('Error: ' + (result.message || 'Submission failed.'), 'error');
+      }
+    } catch (err) {
+      showToast('Network error. Check the Apps Script URL and try again.', 'error');
+      console.error(err);
+    }
+
+    btn.disabled = false;
+    btn.innerHTML = 'Submit Registration';
+  });
+
+  // TOAST
+  function showToast(msg, type) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = type;
+    clearTimeout(t._to);
+    t._to = setTimeout(() => { t.className = ''; }, 5000);
+  }
+
+  // Clear errors on change + AUTO UPPERCASE
+  document.querySelectorAll('input, select, textarea').forEach(el => {
+    el.addEventListener('input', () => {
+      el.classList.remove('error');
+      el.closest('.field')?.classList.remove('has-error');
+    });
+  });
+
+  // Auto uppercase for all text/tel/email/number inputs and textareas
+  // (excludes file inputs, date inputs, select dropdowns)
+  const SKIP_TYPES = ['file', 'date', 'checkbox', 'radio', 'submit', 'button'];
+  document.querySelectorAll('input, textarea').forEach(el => {
+    if (SKIP_TYPES.includes(el.type)) return;
+    // Apply CSS uppercase for visual feedback while typing
+    el.style.textTransform = 'uppercase';
+    el.addEventListener('input', function() {
+      const start = this.selectionStart;
+      const end   = this.selectionEnd;
+      this.value  = this.value.toUpperCase();
+      // Restore cursor position
+      try { this.setSelectionRange(start, end); } catch(e) {}
+    });
+    el.addEventListener('blur', function() {
+      this.value = this.value.toUpperCase();
+    });
+  });
+</script>
+</body>
+</html>
