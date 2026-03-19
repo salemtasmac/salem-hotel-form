@@ -976,9 +976,6 @@
     <div class="success-icon">✅</div>
     <h2>Registration Submitted!</h2>
     <p>All documents have been uploaded to Google Drive and details saved to the SRM Sheet.</p>
-    <p id="folderLinkWrap" style="margin-top:8px;display:none;">
-      <a id="folderLink" href="#" target="_blank">📁 Open Drive Folder</a>
-    </p>
     <button class="btn-new" onclick="resetForm()">Submit Another Registration</button>
   </div>
 </div>
@@ -1472,10 +1469,7 @@
       const result = await resp.json();
       if (result.status === 'success') {
         // Show success overlay
-        if (result.folder) {
-          document.getElementById('folderLink').href = result.folder;
-          document.getElementById('folderLinkWrap').style.display = 'block';
-        }
+        // Folder link intentionally hidden in UI
         document.getElementById('successOverlay').classList.add('show');
       } else {
         showToast('Error: ' + (result.message || 'Submission failed.'), 'error');
