@@ -445,9 +445,9 @@
 
 <!-- ── GOOGLE SIGN-IN BAR ── -->
 <div id="gSignInBar" style="background:#1a3a5c;border-bottom:3px solid #c8860a;padding:10px 24px;display:flex;align-items:center;gap:12px;justify-content:center;flex-wrap:wrap;position:sticky;top:0;z-index:1000;">
-  <span style="font-size:13px;font-weight:600;color:#ffd700;">🔐 Sign in with Google to submit &amp; track who edited this form</span>
+  <span id="gSignInPrompt" style="font-size:13px;font-weight:600;color:#ffd700;">🔐 Sign in with Google to submit &amp; track who edited this form</span>
   <div id="g_id_onload" data-client_id="790378285481-paa486gr2amu42fratn1tghg8af4hvri.apps.googleusercontent.com" data-callback="handleGoogleSignIn" data-auto_prompt="true"></div>
-  <div class="g_id_signin" data-type="standard" data-size="medium" data-theme="outline" data-text="sign_in_with" data-shape="rectangular" data-logo_alignment="left"></div>
+  <div id="gSignInBtn" class="g_id_signin" data-type="standard" data-size="medium" data-theme="outline" data-text="sign_in_with" data-shape="rectangular" data-logo_alignment="left"></div>
   <div id="gUserInfo" style="display:none;align-items:center;gap:8px;">
     <img id="gUserAvatar" src="" style="width:28px;height:28px;border-radius:50%;object-fit:cover;" alt=""/>
     <span id="gUserName" style="font-size:13px;font-weight:600;color:#1a3a5c;"></span>
@@ -496,7 +496,7 @@
         <div class="field col-span-2">
           <label>Name of FL2/FL3 Licensee <span class="req">*</span></label>
           <div id="licenseeInputWrap">
-            <input type="text" name="licensee_name" id="licensee_name" placeholder="Type hotel name to search or enter new…" required autocomplete="off"/>
+            <input type="text" name="licensee_name" id="licensee_name" placeholder="Type hotel name to search or enter new…" required autocomplete="off" style="text-transform:uppercase;"/>
             <span id="fetchSpinner" style="display:none;position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:13px;color:var(--muted);">⏳</span>
           </div>
           <span class="hint" id="autofillHint" style="color:var(--success);display:none;">✅ Existing record loaded — editing mode</span>
@@ -1019,12 +1019,16 @@
         picture: payload.picture || '',
         token:   response.credential
       };
-      // Update UI
-      document.getElementById('gSignInBar').style.background = '#d4edda';
-      document.getElementById('gSignInBar').style.borderColor = '#28a745';
-      document.querySelector('#gSignInBar > span').style.display = 'none';
-      document.querySelector('.g_id_signin').style.display = 'none';
-      const info = document.getElementById('gUserInfo');
+      // Update UI - hide the sign-in prompt, show user info
+      var bar = document.getElementById('gSignInBar');
+      bar.style.background   = '#0d3d1a';
+      bar.style.borderColor  = '#28a745';
+      // Hide prompt text and sign-in button
+      var promptSpan = document.getElementById('gSignInPrompt');
+      var signInBtn  = document.getElementById('gSignInBtn');
+      if (promptSpan) promptSpan.style.display = 'none';
+      if (signInBtn)  signInBtn.style.display  = 'none';
+      var info = document.getElementById('gUserInfo');
       info.style.display = 'flex';
       document.getElementById('gUserAvatar').src = googleUser.picture;
       document.getElementById('gUserName').textContent  = googleUser.name;
@@ -1699,6 +1703,9 @@
     if (!q) { hideSuggestions(); return; }
     triggerSuggest(q);
   });
+
+  // Confirm allRecords loaded on page ready
+  console.log('[TASMAC] allRecords loaded:', allRecords.length, 'hotels');
 
   // ── Blur: hide after 150ms (allows mousedown on item to fire first) ──
   nameInput.addEventListener('blur', function() {
