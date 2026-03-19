@@ -476,12 +476,11 @@
           </select>
           <span class="err-msg">Please select licensee type</span>
         </div>
-        <div class="field col-span-2" style="position:relative;">
+        <div class="field col-span-2">
           <label>Name of FL2/FL3 Licensee <span class="req">*</span></label>
-          <div style="position:relative;" id="licenseeInputWrap">
+          <div id="licenseeInputWrap">
             <input type="text" name="licensee_name" id="licensee_name" placeholder="Type hotel name to search or enter new…" required autocomplete="off"/>
             <span id="fetchSpinner" style="display:none;position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:13px;color:var(--muted);">⏳</span>
-            <div id="licenseeSuggestions" style="display:none;position:absolute;left:0;right:0;top:calc(100% + 2px);z-index:9999;background:#fff;border:1.5px solid var(--primary);border-radius:0 0 8px 8px;max-height:240px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,0.18);"></div>
           </div>
           <span class="hint" id="autofillHint" style="color:var(--success);display:none;">✅ Existing record loaded — editing mode</span>
           <span class="err-msg">Licensee name is required</span>
@@ -1508,56 +1507,62 @@
   if (_sp) _sp.style.display = 'none';
 
   // ── SUGGESTION DROPDOWN ──
+  // suggestBox lives on <body> (declared later) to escape section-card overflow:hidden
   const nameInput    = document.getElementById('licensee_name');
-  const suggestBox   = document.getElementById('licenseeSuggestions');
   const autofillHint = document.getElementById('autofillHint');
   let activeIdx = -1;
 
-  function triggerSuggest(q) {
-    if (!q) { hideSuggestions(); return; }
+  function getSuggestBox() { return document.getElementById('licenseeSuggestions'); }
 
-    // Records are pre-loaded from Excel — always available instantly
+  function positionDropdown() {
+    const sb    = getSuggestBox();
+    const input = document.getElementById('licensee_name');
+    if (!sb || !input) return;
+    const rect = input.getBoundingClientRect();
+    sb.style.left  = rect.left + window.scrollX + 'px';
+    sb.style.top   = (rect.bottom + window.scrollY + 2) + 'px';
+    sb.style.width = rect.width + 'px';
+    sb.style.position = 'absolute';
+  }
+
+  function triggerSuggest(q) {
+    const sb = getSuggestBox();
+    if (!sb) return;
+    if (!q) { hideSuggestions(); return; }
 
     suggestList = allRecords.filter(r =>
       (r.licensee_name || '').toUpperCase().includes(q)
     );
 
     if (!suggestList.length) {
-      suggestBox.innerHTML = '<div style="padding:10px 14px;font-size:12px;color:var(--muted);">No matching hotels found</div>';
-      suggestBox.style.display = 'block';
-      return;
+      sb.innerHTML = '<div style="padding:10px 14px;font-size:12px;color:#888;">No matching hotels found</div>';
+    } else {
+      sb.innerHTML = suggestList.slice(0, 15).map((r, i) => {
+        const name = escHtml(r.licensee_name || '');
+        const hi   = name.replace(
+          new RegExp('(' + escRegex(q) + ')', 'gi'),
+          '<strong style="color:#1a3a5c;background:rgba(26,58,92,0.1);border-radius:2px;padding:0 1px;">$1</strong>'
+        );
+        const sub = [r.license_no, r.revenue_district, r.type_of_licensee].filter(Boolean).join('  ·  ');
+        return `<div class="suggest-item" data-idx="${i}"
+          style="padding:10px 14px;cursor:pointer;border-bottom:1px solid #eef0f4;font-size:13px;line-height:1.4;">
+          <div style="font-weight:600;">${hi}</div>
+          ${sub ? `<div style="font-size:11px;color:#888;margin-top:2px;">${escHtml(sub)}</div>` : ''}
+        </div>`;
+      }).join('');
+      sb.querySelectorAll('.suggest-item').forEach(el => {
+        el.addEventListener('mouseenter', () => el.style.background = '#f0f4fa');
+        el.addEventListener('mouseleave', () => el.style.background = '');
+        el.addEventListener('mousedown', e => { e.preventDefault(); selectRecord(suggestList[+el.dataset.idx]); });
+      });
     }
 
-    suggestBox.innerHTML = suggestList.slice(0, 15).map((r, i) => {
-      const name = escHtml(r.licensee_name || '');
-      // Highlight matching part
-      const hi = name.replace(
-        new RegExp('(' + escRegex(q) + ')', 'gi'),
-        '<strong style="color:var(--primary);background:rgba(26,58,92,0.1);border-radius:2px;padding:0 1px;">$1</strong>'
-      );
-      const sub = [r.license_no, r.revenue_district, r.type_of_licensee]
-        .filter(Boolean).join('  ·  ');
-      return `<div class="suggest-item" data-idx="${i}"
-        style="padding:10px 14px;cursor:pointer;border-bottom:1px solid #eef0f4;font-size:13px;line-height:1.4;">
-        <div style="font-weight:500;">${hi}</div>
-        ${sub ? `<div style="font-size:11px;color:var(--muted);margin-top:2px;">${escHtml(sub)}</div>` : ''}
-      </div>`;
-    }).join('');
-
-    suggestBox.style.display = 'block';
+    positionDropdown();
+    sb.style.display = 'block';
     activeIdx = -1;
-
-    suggestBox.querySelectorAll('.suggest-item').forEach(el => {
-      el.addEventListener('mouseenter', () => el.style.background = '#f0f4fa');
-      el.addEventListener('mouseleave', () => el.style.background = '');
-      el.addEventListener('mousedown', e => {
-        e.preventDefault();
-        selectRecord(suggestList[+el.dataset.idx]);
-      });
-    });
   }
 
-  // nameInput suggestion — fires directly, no conflict with uppercase anymore
+  // Input: trigger suggestions immediately
   nameInput.addEventListener('input', function() {
     autofillHint.style.display = 'none';
     const q = this.value.trim().toUpperCase();
@@ -1565,13 +1570,17 @@
     triggerSuggest(q);
   });
 
-  // Uppercase the licensee name after user finishes typing (on blur)
+  // Blur: uppercase + hide dropdown (unless hovering it)
   nameInput.addEventListener('blur', function() {
-    if (!suggestBox.matches(':hover')) {
+    setTimeout(() => {
+      const sb = getSuggestBox();
+      if (sb && sb.matches(':hover')) return;
       this.value = this.value.toUpperCase();
-    }
+      hideSuggestions();
+    }, 150);
   });
 
+  // Focus: re-show suggestions if text already present
   nameInput.addEventListener('focus', function() {
     const q = this.value.trim().toUpperCase();
     if (q.length >= 1) triggerSuggest(q);
@@ -1579,16 +1588,19 @@
 
   // Keyboard navigation
   nameInput.addEventListener('keydown', function(e) {
-    const items = suggestBox.querySelectorAll('.suggest-item');
+    const sb    = getSuggestBox();
+    const items = sb ? sb.querySelectorAll('.suggest-item') : [];
     if (!items.length) return;
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       activeIdx = Math.min(activeIdx + 1, items.length - 1);
-      highlightItem(items);
+      items.forEach((el, i) => el.style.background = i === activeIdx ? '#dde4f0' : '');
+      if (items[activeIdx]) items[activeIdx].scrollIntoView({ block: 'nearest' });
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       activeIdx = Math.max(activeIdx - 1, 0);
-      highlightItem(items);
+      items.forEach((el, i) => el.style.background = i === activeIdx ? '#dde4f0' : '');
+      if (items[activeIdx]) items[activeIdx].scrollIntoView({ block: 'nearest' });
     } else if (e.key === 'Enter' && activeIdx >= 0) {
       e.preventDefault();
       selectRecord(suggestList[activeIdx]);
@@ -1597,23 +1609,25 @@
     }
   });
 
-  function highlightItem(items) {
-    items.forEach((el, i) => {
-      el.style.background = i === activeIdx ? '#dde4f0' : '';
-    });
-    if (items[activeIdx]) items[activeIdx].scrollIntoView({ block: 'nearest' });
-  }
-
   function hideSuggestions() {
-    suggestBox.style.display = 'none';
-    suggestBox.innerHTML = '';
+    const sb = getSuggestBox();
+    if (sb) { sb.style.display = 'none'; sb.innerHTML = ''; }
     activeIdx = -1;
   }
 
+  // Close when clicking outside
   document.addEventListener('click', e => {
     const wrap = document.getElementById('licenseeInputWrap');
-    if (!wrap || !wrap.contains(e.target)) {
+    const sb   = getSuggestBox();
+    if (wrap && sb && !wrap.contains(e.target) && !sb.contains(e.target)) {
       hideSuggestions();
+    }
+  });
+
+  // Reposition on scroll/resize
+  window.addEventListener('scroll', () => { if (getSuggestBox()?.style.display !== 'none') positionDropdown(); }, true);
+  window.addEventListener('resize', () => { if (getSuggestBox()?.style.display !== 'none') positionDropdown(); });
+
     }
   });
 
@@ -1693,11 +1707,163 @@
   let pickedLng = null;
 
   function openMapPicker() {
-    // Pre-fill search from address1 if available
     const addr = document.querySelector('[name="address1"]')?.value || '';
     const name = document.querySelector('[name="licensee_name"]')?.value || '';
     const searchQuery = encodeURIComponent((name || addr || 'Salem, Tamil Nadu').trim());
     document.getElementById('mapSearchInput').value = decodeURIComponent(searchQuery);
+    const lat = pickedLat || 11.6643;
+    const lng = pickedLng || 78.1460;
+    loadMapEmbed(lat, lng, searchQuery);
+    document.getElementById('mapPickerModal').style.display = 'grid';
+    document.body.style.overflow = 'hidden';
+    document.getElementById('mapSearchInput').focus();
+  }
 
-    // Load Google Maps embed centered on Salem
-    const la
+  function loadMapEmbed(lat, lng, q) {
+    const frame = document.getElementById('mapFrame');
+    const existingMarker = pickedLat ? `marker = L.marker([${pickedLat||0},${pickedLng||0}],{draggable:true}).addTo(map);
+    marker.on('dragend',function(){ var p=marker.getLatLng(); window.parent.postMessage({type:'mapPick',lat:p.lat,lng:p.lng},'*'); });` : '';
+    const leafletHTML = `<!DOCTYPE html>
+<html><head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"><\/script>
+<style>html,body,#map{margin:0;padding:0;height:100%;width:100%;}.leaflet-control-attribution{font-size:9px!important;}</style>
+</head><body>
+<div id="map"></div>
+<script>
+  var map = L.map('map').setView([${lat},${lng}], 15);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap contributors',maxZoom:19}).addTo(map);
+  var marker = null;
+  ${existingMarker}
+  map.on('click', function(e){
+    if(marker){map.removeLayer(marker);}
+    marker=L.marker([e.latlng.lat,e.latlng.lng],{draggable:true}).addTo(map);
+    marker.on('dragend',function(){ var p=marker.getLatLng(); window.parent.postMessage({type:'mapPick',lat:p.lat,lng:p.lng},'*'); });
+    window.parent.postMessage({type:'mapPick',lat:e.latlng.lat,lng:e.latlng.lng},'*');
+  });
+  window.addEventListener('message',function(e){
+    if(e.data&&e.data.type==='panTo'){
+      map.setView([e.data.lat,e.data.lng],16);
+      if(marker){map.removeLayer(marker);}
+      marker=L.marker([e.data.lat,e.data.lng],{draggable:true}).addTo(map);
+      marker.on('dragend',function(){ var p=marker.getLatLng(); window.parent.postMessage({type:'mapPick',lat:p.lat,lng:p.lng},'*'); });
+      window.parent.postMessage({type:'mapPick',lat:e.data.lat,lng:e.data.lng},'*');
+    }
+  });
+<\/script>
+</body></html>`;
+    const blob = new Blob([leafletHTML], {type:'text/html'});
+    frame.src = URL.createObjectURL(blob);
+    frame.onload = () => { setTimeout(() => { const ov=document.getElementById('mapOverlay'); if(ov) ov.style.pointerEvents='none'; }, 500); };
+  }
+
+  window.addEventListener('message', function(e) {
+    if (e.data && e.data.type === 'mapPick') {
+      pickedLat = parseFloat(e.data.lat.toFixed(7));
+      pickedLng = parseFloat(e.data.lng.toFixed(7));
+      document.getElementById('mapSelectedCoords').textContent = pickedLat + ', ' + pickedLng;
+      document.getElementById('mapSelectedPlace').textContent  = 'Drag the pin to fine-tune';
+      const btn = document.getElementById('confirmLocationBtn');
+      btn.disabled = false; btn.style.cursor='pointer'; btn.style.opacity='1';
+      document.getElementById('mapOverlay').style.display = 'none';
+    }
+  });
+
+  async function searchMapLocation() {
+    const q = document.getElementById('mapSearchInput').value.trim();
+    if (!q) return;
+    try {
+      const query = q.toLowerCase().includes('salem') ? q : q + ', Salem, Tamil Nadu';
+      const resp  = await fetch('https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(query) + '&limit=1&countrycodes=in', {headers:{'Accept-Language':'en'}});
+      const data  = await resp.json();
+      if (data && data.length > 0) {
+        document.getElementById('mapFrame').contentWindow.postMessage({type:'panTo',lat:parseFloat(data[0].lat),lng:parseFloat(data[0].lon)},'*');
+        document.getElementById('mapSelectedPlace').textContent = data[0].display_name;
+      } else { showToast('Location not found. Try a different search.','error'); }
+    } catch(err) { showToast('Search failed. Check internet connection.','error'); }
+  }
+
+  function confirmLocation() {
+    if (pickedLat === null) return;
+    document.getElementById('latInput').value = pickedLat;
+    document.getElementById('lngInput').value = pickedLng;
+    document.getElementById('locationDisplay').textContent = 'Location selected ✓';
+    document.getElementById('locationDisplay').style.color = 'var(--success)';
+    document.getElementById('locationDisplay').style.fontStyle = 'normal';
+    document.getElementById('locationCoords').textContent = '📍 ' + pickedLat + ', ' + pickedLng;
+    document.getElementById('locationCoords').style.display = 'block';
+    document.getElementById('clearLocationBtn').style.display = 'inline';
+    document.getElementById('locationErrMsg').style.display = 'none';
+    closeMapPicker();
+    showToast('✅ Location saved: ' + pickedLat + ', ' + pickedLng, 'success');
+  }
+
+  function clearLocation() {
+    pickedLat = null; pickedLng = null;
+    document.getElementById('latInput').value = '';
+    document.getElementById('lngInput').value = '';
+    document.getElementById('locationDisplay').textContent = 'No location selected';
+    document.getElementById('locationDisplay').style.color = 'var(--muted)';
+    document.getElementById('locationDisplay').style.fontStyle = 'italic';
+    document.getElementById('locationCoords').style.display = 'none';
+    document.getElementById('clearLocationBtn').style.display = 'none';
+  }
+
+  function closeMapPicker() {
+    document.getElementById('mapPickerModal').style.display = 'none';
+    document.body.style.overflow = '';
+    const btn = document.getElementById('confirmLocationBtn');
+    btn.disabled=true; btn.style.cursor='not-allowed'; btn.style.opacity='0.5';
+    document.getElementById('mapOverlay').style.display='flex';
+    document.getElementById('mapSelectedCoords').textContent='— click map —';
+    document.getElementById('mapSelectedPlace').textContent='';
+  }
+
+  document.getElementById('mapPickerModal').addEventListener('click', function(e) {
+    if (e.target === this) closeMapPicker();
+  });
+
+  // ── SUGGESTION DROPDOWN POSITIONING (body-level, escapes overflow:hidden) ──
+  const suggestBox = document.getElementById('licenseeSuggestions');
+
+  function positionSuggestBox() {
+    const input = document.getElementById('licensee_name');
+    if (!input) return;
+    const rect = input.getBoundingClientRect();
+    suggestBox.style.left   = rect.left + 'px';
+    suggestBox.style.top    = (rect.bottom + 2) + 'px';
+    suggestBox.style.width  = rect.width + 'px';
+  }
+
+  // Reposition on scroll/resize
+  window.addEventListener('scroll', function() {
+    if (suggestBox.style.display !== 'none') positionSuggestBox();
+  }, true);
+  window.addEventListener('resize', function() {
+    if (suggestBox.style.display !== 'none') positionSuggestBox();
+  });
+
+  // ── INIT ──
+  updateProgress();
+
+</script>
+
+<!-- Suggestion dropdown lives on BODY to escape section-card overflow:hidden -->
+<div id="licenseeSuggestions" style="
+  display:none;
+  position:fixed;
+  z-index:99999;
+  background:#fff;
+  border:2px solid #1a3a5c;
+  border-top:3px solid #b91c1c;
+  border-radius:0 0 10px 10px;
+  max-height:260px;
+  overflow-y:auto;
+  box-shadow:0 8px 32px rgba(0,0,0,0.25);
+  font-family:inherit;
+  font-size:14px;
+"></div>
+
+</html>
