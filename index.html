@@ -1345,23 +1345,34 @@
   // ══════════════════════════════════════════════════════
   //  AUTOCOMPLETE + AUTOFILL FROM GOOGLE SHEET
   // ══════════════════════════════════════════════════════
-  let allRecords = [];   // full rows fetched from sheet
-  let suggestList = [];  // filtered names for dropdown
+  let allRecords    = [];
+  let suggestList   = [];
+  let recordsLoaded = false;
+  let loadingRecords = false;
 
-  // Fetch all records once on page load
   async function loadAllRecords() {
+    if (loadingRecords) return;
+    loadingRecords = true;
     const spinner = document.getElementById('fetchSpinner');
-    spinner.style.display = 'inline';
+    if (spinner) spinner.style.display = 'inline';
     try {
-      const resp = await fetch(APPS_SCRIPT_URL + '?action=getAll');
+      const resp = await fetch(APPS_SCRIPT_URL + '?action=getAll', { cache: 'no-store' });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
       const result = await resp.json();
       if (result.status === 'success' && Array.isArray(result.records)) {
-        allRecords = result.records;
+        allRecords    = result.records;
+        recordsLoaded = true;
       }
     } catch(e) {
       console.warn('Could not load existing records:', e);
     } finally {
-      spinner.style.display = 'none';
+      loadingRecords = false;
+      if (spinner) spinner.style.display = 'none';
+      // If user already typed something, re-run suggestion
+      const nameInput = document.getElementById('licensee_name');
+      if (nameInput && nameInput.value.trim().length >= 1) {
+        triggerSuggest(nameInput.value.trim().toUpperCase());
+      }
     }
   }
   loadAllRecords();
@@ -1372,42 +1383,72 @@
   const autofillHint = document.getElementById('autofillHint');
   let activeIdx = -1;
 
-  nameInput.addEventListener('input', function() {
-    const q = this.value.trim().toUpperCase();
-    autofillHint.style.display = 'none';
-    if (q.length < 1) { hideSuggestions(); return; }
+  function triggerSuggest(q) {
+    if (!q) { hideSuggestions(); return; }
+
+    // If records not yet loaded, show a loading indicator and trigger fetch
+    if (!recordsLoaded) {
+      suggestBox.innerHTML = '<div style="padding:10px 14px;font-size:12px;color:var(--muted);">⏳ Loading records…</div>';
+      suggestBox.style.display = 'block';
+      if (!loadingRecords) loadAllRecords();
+      return;
+    }
+
     suggestList = allRecords.filter(r =>
       (r.licensee_name || '').toUpperCase().includes(q)
     );
-    renderSuggestions(q);
-  });
 
-  function renderSuggestions(q) {
-    if (!suggestList.length) { hideSuggestions(); return; }
-    suggestBox.innerHTML = suggestList.slice(0, 12).map((r, i) => {
+    if (!suggestList.length) {
+      suggestBox.innerHTML = '<div style="padding:10px 14px;font-size:12px;color:var(--muted);">No matching hotels found</div>';
+      suggestBox.style.display = 'block';
+      return;
+    }
+
+    suggestBox.innerHTML = suggestList.slice(0, 15).map((r, i) => {
       const name = escHtml(r.licensee_name || '');
-      const hi   = name.replace(new RegExp('(' + escRegex(q) + ')', 'gi'),
-                     '<strong style="color:var(--primary)">$1</strong>');
-      const sub  = [r.license_no, r.revenue_district].filter(Boolean).join(' · ');
+      // Highlight matching part
+      const hi = name.replace(
+        new RegExp('(' + escRegex(q) + ')', 'gi'),
+        '<strong style="color:var(--primary);background:rgba(26,58,92,0.1);border-radius:2px;padding:0 1px;">$1</strong>'
+      );
+      const sub = [r.license_no, r.revenue_district, r.type_of_licensee]
+        .filter(Boolean).join('  ·  ');
       return `<div class="suggest-item" data-idx="${i}"
-        style="padding:9px 14px;cursor:pointer;border-bottom:1px solid #eef0f4;font-size:13px;transition:background 0.15s;">
-        <div>${hi}</div>
+        style="padding:10px 14px;cursor:pointer;border-bottom:1px solid #eef0f4;font-size:13px;line-height:1.4;">
+        <div style="font-weight:500;">${hi}</div>
         ${sub ? `<div style="font-size:11px;color:var(--muted);margin-top:2px;">${escHtml(sub)}</div>` : ''}
       </div>`;
     }).join('');
+
     suggestBox.style.display = 'block';
     activeIdx = -1;
-    // attach click
+
     suggestBox.querySelectorAll('.suggest-item').forEach(el => {
-      el.addEventListener('mouseenter', () => el.style.background='#f0f4fa');
-      el.addEventListener('mouseleave', () => el.style.background='');
+      el.addEventListener('mouseenter', () => el.style.background = '#f0f4fa');
+      el.addEventListener('mouseleave', () => el.style.background = '');
       el.addEventListener('mousedown', e => {
         e.preventDefault();
-        const idx = +el.dataset.idx;
-        selectRecord(suggestList[idx]);
+        selectRecord(suggestList[+el.dataset.idx]);
       });
     });
   }
+
+  // Use a dedicated listener on the nameInput that runs AFTER the uppercase transform
+  // We use setTimeout(0) to let the uppercase input handler fire first
+  nameInput.addEventListener('input', function() {
+    autofillHint.style.display = 'none';
+    const self = this;
+    setTimeout(() => {
+      const q = self.value.trim().toUpperCase();
+      if (q.length < 1) { hideSuggestions(); return; }
+      triggerSuggest(q);
+    }, 0);
+  });
+
+  nameInput.addEventListener('focus', function() {
+    const q = this.value.trim().toUpperCase();
+    if (q.length >= 1) triggerSuggest(q);
+  });
 
   // Keyboard navigation
   nameInput.addEventListener('keydown', function(e) {
@@ -1431,9 +1472,9 @@
 
   function highlightItem(items) {
     items.forEach((el, i) => {
-      el.style.background = i === activeIdx ? '#e8edf5' : '';
+      el.style.background = i === activeIdx ? '#dde4f0' : '';
     });
-    if (items[activeIdx]) items[activeIdx].scrollIntoView({ block:'nearest' });
+    if (items[activeIdx]) items[activeIdx].scrollIntoView({ block: 'nearest' });
   }
 
   function hideSuggestions() {
@@ -1442,64 +1483,61 @@
     activeIdx = -1;
   }
 
-  // Close on outside click
   document.addEventListener('click', e => {
-    if (!nameInput.contains(e.target) && !suggestBox.contains(e.target)) hideSuggestions();
+    if (!nameInput.contains(e.target) && !suggestBox.contains(e.target)) {
+      hideSuggestions();
+    }
   });
 
   // ── AUTOFILL FORM ──
   function selectRecord(r) {
     hideSuggestions();
-    // Fill every field from the record
-    const map = {
-      licensee_name:       r.licensee_name,
-      type_of_licensee:    r.type_of_licensee,
-      star_rating:         r.star_rating,
-      trade_name:          r.trade_name,
-      owner_name:          r.owner_name,
-      license_no:          r.license_no,
-      license_issue_date:  r.license_issue_date,
-      license_expiry_date: r.license_expiry_date,
-      ho_letter_no:        r.ho_letter_no,
-      ho_letter_date:      r.ho_letter_date,
-      possession_limit:    r.possession_limit,
-      security_deposit:    r.security_deposit,
-      gstin:               r.gstin,
-      pan:                 r.pan,
-      tin:                 r.tin,
-      address1:            r.address1,
-      address2:            r.address2,
-      address3:            r.address3,
-      revenue_taluk:       r.revenue_taluk,
-      revenue_district:    r.revenue_district,
-      latitude:            r.latitude,
-      longitude:           r.longitude,
-      email:               r.email,
-      phone:               r.phone,
-      alt_contact_name:    r.alt_contact_name,
-      alt_phone:           r.alt_phone,
+    const fieldMap = {
+      licensee_name:         r.licensee_name,
+      type_of_licensee:      r.type_of_licensee,
+      star_rating:           r.star_rating,
+      trade_name:            r.trade_name,
+      owner_name:            r.owner_name,
+      license_no:            r.license_no,
+      license_issue_date:    r.license_issue_date,
+      license_expiry_date:   r.license_expiry_date,
+      ho_letter_no:          r.ho_letter_no,
+      ho_letter_date:        r.ho_letter_date,
+      possession_limit:      r.possession_limit,
+      security_deposit:      r.security_deposit,
+      gstin:                 r.gstin,
+      pan:                   r.pan,
+      tin:                   r.tin,
+      address1:              r.address1,
+      address2:              r.address2,
+      address3:              r.address3,
+      revenue_taluk:         r.revenue_taluk,
+      revenue_district:      r.revenue_district,
+      latitude:              r.latitude,
+      longitude:             r.longitude,
+      email:                 r.email,
+      phone:                 r.phone,
+      alt_contact_name:      r.alt_contact_name,
+      alt_phone:             r.alt_phone,
       purchase_person_name:  r.purchase_person_name,
       purchase_person_phone: r.purchase_person_phone,
-      allocated_depot:     r.allocated_depot,
-      current_depot:       r.current_depot,
+      allocated_depot:       r.allocated_depot,
+      current_depot:         r.current_depot,
     };
-    Object.entries(map).forEach(([name, val]) => {
-      if (val === undefined || val === null) return;
+    Object.entries(fieldMap).forEach(([name, val]) => {
+      if (val === undefined || val === null || val === '') return;
       const el = document.querySelector('[name="' + name + '"]');
       if (!el) return;
       el.value = val;
-      // Clear any error state
       el.classList.remove('error');
       el.closest('.field')?.classList.remove('has-error');
     });
     autofillHint.style.display = 'block';
     updateProgress();
-    // Re-trigger GSTIN/PAN badge
     document.getElementById('gstinInput').dispatchEvent(new Event('input'));
     document.getElementById('panInput').dispatchEvent(new Event('input'));
-    // Re-trigger expiry hint
     document.querySelector('[name="license_expiry_date"]').dispatchEvent(new Event('change'));
-    showToast('✅ Record loaded — update fields and re-submit to save changes.', 'success');
+    showToast('✅ Existing record loaded — update and re-submit to save changes.', 'success');
   }
 
   function escRegex(s) {
