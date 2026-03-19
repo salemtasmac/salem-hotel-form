@@ -985,7 +985,7 @@
   // ══════════════════════════════════════════════════════
   //  CONFIGURATION
   // ══════════════════════════════════════════════════════
-  const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw53QY8VAv8spjmWRjdY8LGUe_zVnQjF8X7gcyjCTiZZLfV0t_U-ZrvJha1zcVC5SM/exec";
+  const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzYlf5bgXabbh_GOeS7gOBGgSU4DMwBbzC_5G2etr8Q2bXWSiFnm0n3yb6tR4iQNRnj/exec";
 
   // Document slot labels (must match Google Apps Script DOC_SLOTS)
   const DOC_LABELS = [
@@ -1336,6 +1336,8 @@
     } else {
       if (locErr) locErr.style.display = 'none';
     }
+    // Document slots — all 8 required
+    REQUIRED_SLOTS.forEach(idx => {
       const slot = document.getElementById('slot-' + idx);
       if (!slotFiles[idx]) { slot.classList.add('required-missing'); valid = false; }
       else slot.classList.remove('required-missing');
@@ -1498,7 +1500,7 @@
           }
         });
         if (added > 0) {
-          console.log('[TASMAC] Added ' + added + ' new registration(s) from sheet to suggestions.');
+          console.log('[TASMAC] Added ' + added + ' new hotel(s) from FL2_FL3_Old sheet to suggestions.');
           // If user already typed something, refresh the dropdown immediately
           var ni = document.getElementById('licensee_name');
           if (ni && ni.value.trim().length >= 1) {
