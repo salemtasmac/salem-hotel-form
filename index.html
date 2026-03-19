@@ -254,18 +254,6 @@
     .valid-badge.show { display: block; }
 
     /* ── SECTION 0: S.No / Office ── */
-    .office-band {
-      background: var(--accent-light);
-      border: 1px solid #e8c97a;
-      border-radius: var(--radius);
-      padding: 16px 20px;
-      margin-bottom: 20px;
-      display: grid;
-      grid-template-columns: repeat(3,1fr);
-      gap: 16px;
-    }
-    @media(max-width:640px) { .office-band { grid-template-columns: 1fr; } }
-    .office-band .field label { color: #7a5500; }
 
     /* ── DOCUMENT UPLOAD ── */
     .doc-upload-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
@@ -469,21 +457,6 @@
 <form id="hotelForm" novalidate>
 
   <!-- 0. OFFICE REFERENCE -->
-  <div class="office-band">
-    <div class="field">
-      <label>S.No</label>
-      <input type="number" name="sno" placeholder="e.g. 1" min="1"/>
-    </div>
-    <div class="field">
-      <label>DM Office</label>
-      <input type="text" name="dm_office" placeholder="Deputy Manager Office"/>
-    </div>
-    <div class="field">
-      <label>SRM Office</label>
-      <input type="text" name="srm_office" placeholder="Senior Regional Manager Office"/>
-    </div>
-  </div>
-
   <!-- 1. LICENSEE INFORMATION -->
   <div class="section-card" data-section="0">
     <div class="section-head">
@@ -503,9 +476,14 @@
           </select>
           <span class="err-msg">Please select licensee type</span>
         </div>
-        <div class="field col-span-2">
+        <div class="field col-span-2" style="position:relative;">
           <label>Name of FL2/FL3 Licensee <span class="req">*</span></label>
-          <input type="text" name="licensee_name" placeholder="Full hotel / licensee name" required/>
+          <div style="position:relative;">
+            <input type="text" name="licensee_name" id="licensee_name" placeholder="Type hotel name to search or enter new…" required autocomplete="off"/>
+            <span id="fetchSpinner" style="display:none;position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:13px;color:var(--muted);">⏳</span>
+          </div>
+          <div id="licenseeSuggestions" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:1000;background:#fff;border:1.5px solid var(--primary);border-top:none;border-radius:0 0 8px 8px;max-height:220px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,0.13);"></div>
+          <span class="hint" id="autofillHint" style="color:var(--success);display:none;">✅ Existing record loaded — editing mode</span>
           <span class="err-msg">Licensee name is required</span>
         </div>
         <div class="field">
@@ -1363,6 +1341,170 @@
     });
     el.addEventListener('blur', function() { this.value = this.value.toUpperCase(); });
   });
+
+  // ══════════════════════════════════════════════════════
+  //  AUTOCOMPLETE + AUTOFILL FROM GOOGLE SHEET
+  // ══════════════════════════════════════════════════════
+  let allRecords = [];   // full rows fetched from sheet
+  let suggestList = [];  // filtered names for dropdown
+
+  // Fetch all records once on page load
+  async function loadAllRecords() {
+    const spinner = document.getElementById('fetchSpinner');
+    spinner.style.display = 'inline';
+    try {
+      const resp = await fetch(APPS_SCRIPT_URL + '?action=getAll');
+      const result = await resp.json();
+      if (result.status === 'success' && Array.isArray(result.records)) {
+        allRecords = result.records;
+      }
+    } catch(e) {
+      console.warn('Could not load existing records:', e);
+    } finally {
+      spinner.style.display = 'none';
+    }
+  }
+  loadAllRecords();
+
+  // ── SUGGESTION DROPDOWN ──
+  const nameInput    = document.getElementById('licensee_name');
+  const suggestBox   = document.getElementById('licenseeSuggestions');
+  const autofillHint = document.getElementById('autofillHint');
+  let activeIdx = -1;
+
+  nameInput.addEventListener('input', function() {
+    const q = this.value.trim().toUpperCase();
+    autofillHint.style.display = 'none';
+    if (q.length < 1) { hideSuggestions(); return; }
+    suggestList = allRecords.filter(r =>
+      (r.licensee_name || '').toUpperCase().includes(q)
+    );
+    renderSuggestions(q);
+  });
+
+  function renderSuggestions(q) {
+    if (!suggestList.length) { hideSuggestions(); return; }
+    suggestBox.innerHTML = suggestList.slice(0, 12).map((r, i) => {
+      const name = escHtml(r.licensee_name || '');
+      const hi   = name.replace(new RegExp('(' + escRegex(q) + ')', 'gi'),
+                     '<strong style="color:var(--primary)">$1</strong>');
+      const sub  = [r.license_no, r.revenue_district].filter(Boolean).join(' · ');
+      return `<div class="suggest-item" data-idx="${i}"
+        style="padding:9px 14px;cursor:pointer;border-bottom:1px solid #eef0f4;font-size:13px;transition:background 0.15s;">
+        <div>${hi}</div>
+        ${sub ? `<div style="font-size:11px;color:var(--muted);margin-top:2px;">${escHtml(sub)}</div>` : ''}
+      </div>`;
+    }).join('');
+    suggestBox.style.display = 'block';
+    activeIdx = -1;
+    // attach click
+    suggestBox.querySelectorAll('.suggest-item').forEach(el => {
+      el.addEventListener('mouseenter', () => el.style.background='#f0f4fa');
+      el.addEventListener('mouseleave', () => el.style.background='');
+      el.addEventListener('mousedown', e => {
+        e.preventDefault();
+        const idx = +el.dataset.idx;
+        selectRecord(suggestList[idx]);
+      });
+    });
+  }
+
+  // Keyboard navigation
+  nameInput.addEventListener('keydown', function(e) {
+    const items = suggestBox.querySelectorAll('.suggest-item');
+    if (!items.length) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      activeIdx = Math.min(activeIdx + 1, items.length - 1);
+      highlightItem(items);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      activeIdx = Math.max(activeIdx - 1, 0);
+      highlightItem(items);
+    } else if (e.key === 'Enter' && activeIdx >= 0) {
+      e.preventDefault();
+      selectRecord(suggestList[activeIdx]);
+    } else if (e.key === 'Escape') {
+      hideSuggestions();
+    }
+  });
+
+  function highlightItem(items) {
+    items.forEach((el, i) => {
+      el.style.background = i === activeIdx ? '#e8edf5' : '';
+    });
+    if (items[activeIdx]) items[activeIdx].scrollIntoView({ block:'nearest' });
+  }
+
+  function hideSuggestions() {
+    suggestBox.style.display = 'none';
+    suggestBox.innerHTML = '';
+    activeIdx = -1;
+  }
+
+  // Close on outside click
+  document.addEventListener('click', e => {
+    if (!nameInput.contains(e.target) && !suggestBox.contains(e.target)) hideSuggestions();
+  });
+
+  // ── AUTOFILL FORM ──
+  function selectRecord(r) {
+    hideSuggestions();
+    // Fill every field from the record
+    const map = {
+      licensee_name:       r.licensee_name,
+      type_of_licensee:    r.type_of_licensee,
+      star_rating:         r.star_rating,
+      trade_name:          r.trade_name,
+      owner_name:          r.owner_name,
+      license_no:          r.license_no,
+      license_issue_date:  r.license_issue_date,
+      license_expiry_date: r.license_expiry_date,
+      ho_letter_no:        r.ho_letter_no,
+      ho_letter_date:      r.ho_letter_date,
+      possession_limit:    r.possession_limit,
+      security_deposit:    r.security_deposit,
+      gstin:               r.gstin,
+      pan:                 r.pan,
+      tin:                 r.tin,
+      address1:            r.address1,
+      address2:            r.address2,
+      address3:            r.address3,
+      revenue_taluk:       r.revenue_taluk,
+      revenue_district:    r.revenue_district,
+      latitude:            r.latitude,
+      longitude:           r.longitude,
+      email:               r.email,
+      phone:               r.phone,
+      alt_contact_name:    r.alt_contact_name,
+      alt_phone:           r.alt_phone,
+      purchase_person_name:  r.purchase_person_name,
+      purchase_person_phone: r.purchase_person_phone,
+      allocated_depot:     r.allocated_depot,
+      current_depot:       r.current_depot,
+    };
+    Object.entries(map).forEach(([name, val]) => {
+      if (val === undefined || val === null) return;
+      const el = document.querySelector('[name="' + name + '"]');
+      if (!el) return;
+      el.value = val;
+      // Clear any error state
+      el.classList.remove('error');
+      el.closest('.field')?.classList.remove('has-error');
+    });
+    autofillHint.style.display = 'block';
+    updateProgress();
+    // Re-trigger GSTIN/PAN badge
+    document.getElementById('gstinInput').dispatchEvent(new Event('input'));
+    document.getElementById('panInput').dispatchEvent(new Event('input'));
+    // Re-trigger expiry hint
+    document.querySelector('[name="license_expiry_date"]').dispatchEvent(new Event('change'));
+    showToast('✅ Record loaded — update fields and re-submit to save changes.', 'success');
+  }
+
+  function escRegex(s) {
+    return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
 
   // ── INIT ──
   updateUploadSummary();
