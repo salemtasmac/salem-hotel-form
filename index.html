@@ -1452,7 +1452,6 @@
     if (SKIP_TYPES.includes(el.type)) return;
     if (el.name === 'email') return;
     if (el.id === 'tinInput') return;       // digits only
-    if (el.id === 'licensee_name') return;  // autocomplete field — skip uppercase transform
     el.style.textTransform = 'uppercase';
     el.addEventListener('input', function() {
       const s = this.selectionStart, e2 = this.selectionEnd;
@@ -1487,47 +1486,62 @@
       if (script.parentNode) script.parentNode.removeChild(script);
       delete window[callbackName];
 
-      if (result && result.status === 'success' && Array.isArray(result.records) && result.records.length) {
-        // Build a set of existing licensee names (uppercase) for deduplication
-        const existing = new Set(allRecords.map(r => (r.licensee_name || '').toUpperCase().trim()));
+      console.log('[TASMAC] Sheet response:', result ? result.status : 'null', 
+                  result ? '(' + (result.records ? result.records.length : 0) + ' records)' : '');
+
+      if (result && result.status === 'success' && Array.isArray(result.records)) {
+        // Uppercase all licensee names from sheet for consistency
+        result.records.forEach(function(r) {
+          if (r.licensee_name) r.licensee_name = r.licensee_name.toUpperCase().trim();
+        });
+
+        // Deduplicate against pre-loaded Excel records
+        const existing = new Set(allRecords.map(function(r) {
+          return (r.licensee_name || '').toUpperCase().trim();
+        }));
         let added = 0;
         result.records.forEach(function(r) {
-          const name = (r.licensee_name || '').toUpperCase().trim();
+          const name = (r.licensee_name || '').trim();
           if (name && !existing.has(name)) {
             allRecords.push(r);
             existing.add(name);
             added++;
           }
         });
-        if (added > 0) {
-          console.log('[TASMAC] Added ' + added + ' new hotel(s) from FL2_FL3_Old sheet to suggestions.');
-          // If user already typed something, refresh the dropdown immediately
-          var ni = document.getElementById('licensee_name');
-          if (ni && ni.value.trim().length >= 1) {
-            triggerSuggest(ni.value.trim().toUpperCase());
-          }
+        console.log('[TASMAC] Total records now: ' + allRecords.length + 
+                    ' (' + added + ' new from FL2_FL3_Old sheet)');
+        // Refresh dropdown if user already typing
+        var ni = document.getElementById('licensee_name');
+        if (ni && ni.value.trim().length >= 1) {
+          triggerSuggest(ni.value.trim().toUpperCase());
         }
+      } else if (result && result.status === 'error') {
+        console.warn('[TASMAC] Sheet fetch error:', result.message);
       }
     };
 
-    // Timeout: if sheet doesn't respond in 8s, silently continue with Excel data
-    setTimeout(function() {
+    // Timeout after 10s — silently fall back to Excel data only
+    const timer = setTimeout(function() {
       if (!done) {
         done = true;
         if (script.parentNode) script.parentNode.removeChild(script);
         delete window[callbackName];
+        console.warn('[TASMAC] Sheet fetch timed out — using Excel data only.');
       }
-    }, 8000);
+    }, 10000);
 
     script.onerror = function() {
+      clearTimeout(timer);
       if (!done) {
         done = true;
         if (script.parentNode) script.parentNode.removeChild(script);
         delete window[callbackName];
+        console.warn('[TASMAC] Sheet fetch failed — using Excel data only.');
       }
     };
 
     script.src = APPS_SCRIPT_URL + '?action=getAll&callback=' + callbackName;
+    console.log('[TASMAC] Fetching from sheet:', script.src);
     document.head.appendChild(script);
   })();
 
@@ -1703,7 +1717,15 @@
       if (val === undefined || val === null || val === '') return;
       const el = document.querySelector('[name="' + name + '"]');
       if (!el) return;
-      el.value = val;
+      // Uppercase text fields (skip email, numeric, date, select)
+      const _skip = ['email','tin','latitude','longitude',
+        'license_issue_date','license_expiry_date','ho_letter_date'];
+      if (!_skip.includes(name) && el.type !== 'date' && el.type !== 'number'
+          && el.tagName !== 'SELECT') {
+        el.value = String(val).toUpperCase();
+      } else {
+        el.value = val;
+      }
       el.classList.remove('error');
       el.closest('.field')?.classList.remove('has-error');
     });
