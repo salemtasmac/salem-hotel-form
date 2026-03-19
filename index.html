@@ -1350,30 +1350,65 @@
   let recordsLoaded = false;
   let loadingRecords = false;
 
-  async function loadAllRecords() {
-    if (loadingRecords) return;
+  // Use JSONP to bypass CORS on Google Apps Script GET requests
+  function loadAllRecords() {
+    if (loadingRecords || recordsLoaded) return;
     loadingRecords = true;
     const spinner = document.getElementById('fetchSpinner');
     if (spinner) spinner.style.display = 'inline';
-    try {
-      const resp = await fetch(APPS_SCRIPT_URL + '?action=getAll', { cache: 'no-store' });
-      if (!resp.ok) throw new Error('HTTP ' + resp.status);
-      const result = await resp.json();
-      if (result.status === 'success' && Array.isArray(result.records)) {
+
+    const callbackName = '_gasCallback_' + Date.now();
+    const script = document.createElement('script');
+    let done = false;
+
+    window[callbackName] = function(result) {
+      done = true;
+      cleanup();
+      if (result && result.status === 'success' && Array.isArray(result.records)) {
         allRecords    = result.records;
         recordsLoaded = true;
       }
-    } catch(e) {
-      console.warn('Could not load existing records:', e);
-    } finally {
       loadingRecords = false;
       if (spinner) spinner.style.display = 'none';
-      // If user already typed something, re-run suggestion
-      const nameInput = document.getElementById('licensee_name');
-      if (nameInput && nameInput.value.trim().length >= 1) {
-        triggerSuggest(nameInput.value.trim().toUpperCase());
-      }
+      // Re-run suggestion if user already typed
+      const q = nameInput ? nameInput.value.trim().toUpperCase() : '';
+      if (q.length >= 1) triggerSuggest(q);
+    };
+
+    function cleanup() {
+      if (script.parentNode) script.parentNode.removeChild(script);
+      delete window[callbackName];
     }
+
+    // Timeout fallback — if script doesn't load in 10s, fail gracefully
+    const timer = setTimeout(() => {
+      if (!done) {
+        cleanup();
+        loadingRecords = false;
+        recordsLoaded  = true; // stop retrying
+        allRecords     = [];
+        if (spinner) spinner.style.display = 'none';
+        const q = nameInput ? nameInput.value.trim().toUpperCase() : '';
+        if (q.length >= 1) triggerSuggest(q);
+      }
+    }, 10000);
+
+    script.onerror = () => {
+      clearTimeout(timer);
+      if (!done) {
+        done = true;
+        cleanup();
+        loadingRecords = false;
+        recordsLoaded  = true;
+        allRecords     = [];
+        if (spinner) spinner.style.display = 'none';
+        const q = nameInput ? nameInput.value.trim().toUpperCase() : '';
+        if (q.length >= 1) triggerSuggest(q);
+      }
+    };
+
+    script.src = APPS_SCRIPT_URL + '?action=getAll&callback=' + callbackName;
+    document.head.appendChild(script);
   }
   loadAllRecords();
 
