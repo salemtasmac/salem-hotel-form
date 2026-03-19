@@ -653,7 +653,8 @@
         </div>
         <div class="field col-span-2">
           <label>Location <span class="req">*</span></label>
-          <div style="display:flex;gap:10px;align-items:stretch;">
+          <!-- Status bar -->
+          <div style="display:flex;gap:10px;align-items:stretch;margin-bottom:8px;">
             <div style="flex:1;display:flex;gap:8px;align-items:center;background:#fff;border:1.5px solid var(--border);border-radius:7px;padding:8px 12px;">
               <span style="font-size:18px;">📍</span>
               <div style="flex:1;min-width:0;">
@@ -662,15 +663,35 @@
               </div>
               <button type="button" id="clearLocationBtn" onclick="clearLocation()" style="display:none;background:none;border:none;color:var(--error);cursor:pointer;font-size:16px;padding:0 4px;" title="Clear location">✕</button>
             </div>
-            <button type="button" onclick="openMapPicker()" style="background:var(--primary);color:#fff;border:none;border-radius:7px;padding:10px 18px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:6px;font-family:inherit;">
-              🗺️ Pick on Map
+            <button type="button" onclick="openGoogleMaps()" style="background:#1a73e8;color:#fff;border:none;border-radius:7px;padding:10px 18px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:6px;font-family:inherit;">
+              🗺️ Open Google Maps
             </button>
           </div>
-          <!-- Hidden inputs for actual form submission -->
-          <input type="hidden" name="latitude" id="latInput"/>
-          <input type="hidden" name="longitude" id="lngInput"/>
-          <span class="hint">Click "Pick on Map" to open Google Maps and choose the exact location</span>
-          <span class="err-msg" id="locationErrMsg" style="display:none;">Location is required — please pick on map</span>
+          <!-- Manual lat/lng entry -->
+          <div style="background:#f8f9fb;border:1.5px solid var(--border);border-radius:8px;padding:12px 14px;">
+            <div style="font-size:12px;font-weight:600;color:var(--primary);margin-bottom:8px;">
+              📋 Step 1: Open Google Maps → right-click your location → copy coordinates<br>
+              📋 Step 2: Paste Latitude &amp; Longitude below
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;">
+              <div>
+                <label style="font-size:11px;color:var(--muted);font-weight:600;display:block;margin-bottom:3px;">LATITUDE</label>
+                <input type="number" id="latInput" name="latitude" step="any" placeholder="e.g. 11.6327"
+                  style="width:100%;border:1.5px solid var(--border);border-radius:6px;padding:8px 10px;font-size:13px;font-family:inherit;"
+                  oninput="onLatLngInput()"/>
+              </div>
+              <div>
+                <label style="font-size:11px;color:var(--muted);font-weight:600;display:block;margin-bottom:3px;">LONGITUDE</label>
+                <input type="number" id="lngInput" name="longitude" step="any" placeholder="e.g. 78.1266"
+                  style="width:100%;border:1.5px solid var(--border);border-radius:6px;padding:8px 10px;font-size:13px;font-family:inherit;"
+                  oninput="onLatLngInput()"/>
+              </div>
+              <button type="button" onclick="confirmLatLng()" style="background:var(--success);color:#fff;border:none;border-radius:6px;padding:9px 14px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;">
+                ✅ Confirm
+              </button>
+            </div>
+          </div>
+          <span class="err-msg" id="locationErrMsg" style="display:none;">Location is required — enter Latitude &amp; Longitude</span>
         </div>
       </div>
     </div>
@@ -951,68 +972,6 @@
   </div>
 </div>
 
-<!-- ── MAP PICKER MODAL ── -->
-<div id="mapPickerModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:10002;place-items:center;">
-  <div style="background:#fff;border-radius:14px;width:95%;max-width:860px;max-height:92vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.4);">
-
-    <!-- Modal Header -->
-    <div style="background:var(--primary);color:#fff;padding:14px 20px;display:flex;align-items:center;gap:12px;flex-shrink:0;">
-      <span style="font-size:18px;">🗺️</span>
-      <div style="flex:1;">
-        <div style="font-weight:700;font-size:15px;">Pick Location on Map</div>
-        <div style="font-size:11px;opacity:0.7;">Search for the hotel address or click anywhere on the map to drop a pin</div>
-      </div>
-      <button type="button" onclick="closeMapPicker()" style="background:rgba(255,255,255,0.18);border:none;color:#fff;width:30px;height:30px;border-radius:50%;font-size:18px;cursor:pointer;display:grid;place-items:center;">✕</button>
-    </div>
-
-    <!-- Search Bar -->
-    <div style="padding:12px 16px;background:#f8f9fb;border-bottom:1px solid var(--border);flex-shrink:0;display:flex;gap:8px;">
-      <input type="text" id="mapSearchInput" placeholder="Search: Hotel name, area, address in Salem…"
-        style="flex:1;border:1.5px solid var(--border);border-radius:7px;padding:9px 14px;font-size:14px;font-family:inherit;outline:none;"
-        onkeydown="if(event.key==='Enter'){event.preventDefault();searchMapLocation();}"/>
-      <button type="button" onclick="searchMapLocation()"
-        style="background:var(--primary);color:#fff;border:none;border-radius:7px;padding:9px 18px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;">
-        🔍 Search
-      </button>
-    </div>
-
-    <!-- Map iframe -->
-    <div style="position:relative;flex:1;min-height:380px;">
-      <iframe id="mapFrame"
-        style="width:100%;height:100%;border:none;min-height:380px;"
-        loading="lazy"
-        src="about:blank">
-      </iframe>
-      <!-- Crosshair overlay for click position -->
-      <div id="mapOverlay" style="position:absolute;inset:0;cursor:crosshair;display:flex;align-items:center;justify-content:center;">
-        <div style="pointer-events:none;text-align:center;">
-          <div style="background:rgba(26,58,92,0.85);color:#fff;border-radius:8px;padding:8px 16px;font-size:12px;font-weight:600;">
-            👆 Click on the map to drop a pin at the exact location
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Selected coords display -->
-    <div id="mapCoordsBar" style="padding:10px 16px;background:#f0f4fa;border-top:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;gap:12px;font-size:13px;">
-      <span style="color:var(--muted);">Selected:</span>
-      <span id="mapSelectedCoords" style="font-weight:700;color:var(--primary);font-family:monospace;">— click map —</span>
-      <span id="mapSelectedPlace" style="color:var(--muted);font-size:12px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
-    </div>
-
-    <!-- Footer buttons -->
-    <div style="padding:12px 16px;background:#fff;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px;flex-shrink:0;">
-      <button type="button" onclick="closeMapPicker()"
-        style="background:#e8edf5;color:var(--text);border:none;border-radius:7px;padding:10px 24px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;">
-        Cancel
-      </button>
-      <button type="button" id="confirmLocationBtn" onclick="confirmLocation()" disabled
-        style="background:var(--success);color:#fff;border:none;border-radius:7px;padding:10px 28px;font-size:14px;font-weight:600;cursor:not-allowed;opacity:0.5;font-family:inherit;">
-        ✅ Confirm Location
-      </button>
-    </div>
-  </div>
-</div>
 
 
 <script>
@@ -1768,134 +1727,76 @@
   }
 
   // ══════════════════════════════════════════════════════
-  //  MAP PICKER
+  //  LOCATION PICKER (Google Maps + manual coordinate entry)
   // ══════════════════════════════════════════════════════
   let pickedLat = null;
   let pickedLng = null;
 
-  function openMapPicker() {
+  // Open Google Maps centered on Salem (or current address if filled)
+  function openGoogleMaps() {
     const addr = document.querySelector('[name="address1"]')?.value || '';
     const name = document.querySelector('[name="licensee_name"]')?.value || '';
-    const searchQuery = encodeURIComponent((name || addr || 'Salem, Tamil Nadu').trim());
-    document.getElementById('mapSearchInput').value = decodeURIComponent(searchQuery);
-    const lat = pickedLat || 11.6643;
-    const lng = pickedLng || 78.1460;
-    loadMapEmbed(lat, lng, searchQuery);
-    document.getElementById('mapPickerModal').style.display = 'grid';
-    document.body.style.overflow = 'hidden';
-    document.getElementById('mapSearchInput').focus();
+    const query = encodeURIComponent((name || addr || 'Salem, Tamil Nadu, India').trim());
+    // Open Google Maps search — user right-clicks a location and copies coordinates
+    window.open('https://www.google.com/maps/search/' + query, '_blank');
+    // Show helper toast
+    showToast('🗺️ Right-click on your location in Google Maps → click coordinates to copy them, then paste below.', 'info');
   }
 
-  function loadMapEmbed(lat, lng, q) {
-    const frame = document.getElementById('mapFrame');
-    const existingMarkerCode = pickedLat
-      ? 'marker=L.marker([' + (pickedLat||0) + ',' + (pickedLng||0) + '],{draggable:true}).addTo(map);' +
-        'marker.on("dragend",function(){var p=marker.getLatLng();window.parent.postMessage({type:"mapPick",lat:p.lat,lng:p.lng},"*");});'
-      : '';
-    const S = 'scr'+'ipt';
-    const lines = [
-      '<!DOCTYPE html><html><head>',
-      '<meta charset="UTF-8"/>',
-      '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>',
-      '<' + S + ' src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></' + S + '>',
-      '<style>html,body,#map{margin:0;padding:0;height:100%;width:100%;}.leaflet-control-attribution{font-size:9px!important;}</style>',
-      '</head><body><div id="map"></div>',
-      '<' + S + '>',
-      'var map=L.map("map").setView([' + lat + ',' + lng + '],15);',
-      'L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{attribution:"\u00a9 OpenStreetMap",maxZoom:19}).addTo(map);',
-      'var marker=null;',
-      existingMarkerCode,
-      'map.on("click",function(e){if(marker){map.removeLayer(marker);}marker=L.marker([e.latlng.lat,e.latlng.lng],{draggable:true}).addTo(map);marker.on("dragend",function(){var p=marker.getLatLng();window.parent.postMessage({type:"mapPick",lat:p.lat,lng:p.lng},"*");});window.parent.postMessage({type:"mapPick",lat:e.latlng.lat,lng:e.latlng.lng},"*");});',
-      'window.addEventListener("message",function(e){if(e.data&&e.data.type==="panTo"){map.setView([e.data.lat,e.data.lng],16);if(marker){map.removeLayer(marker);}marker=L.marker([e.data.lat,e.data.lng],{draggable:true}).addTo(map);marker.on("dragend",function(){var p=marker.getLatLng();window.parent.postMessage({type:"mapPick",lat:p.lat,lng:p.lng},"*");});window.parent.postMessage({type:"mapPick",lat:e.data.lat,lng:e.data.lng},"*");}});',
-      '</' + S + '>',
-      '</body></html>'
-    ];
-    const html = lines.join('\n');
-    const blob = new Blob([html], {type:'text/html'});
-    frame.src = URL.createObjectURL(blob);
-    frame.onload = () => { setTimeout(() => { const ov=document.getElementById('mapOverlay'); if(ov) ov.style.pointerEvents='none'; },500); };
-  });
-  window.addEventListener('message',function(e){
-    if(e.data&&e.data.type==='panTo'){
-      map.setView([e.data.lat,e.data.lng],16);
-      if(marker){map.removeLayer(marker);}
-      marker=L.marker([e.data.lat,e.data.lng],{draggable:true}).addTo(map);
-      marker.on('dragend',function(){ var p=marker.getLatLng(); window.parent.postMessage({type:'mapPick',lat:p.lat,lng:p.lng},'*'); });
-      window.parent.postMessage({type:'mapPick',lat:e.data.lat,lng:e.data.lng},'*');
+  // Called when lat/lng inputs change
+  function onLatLngInput() {
+    const lat = parseFloat(document.getElementById('latInput').value);
+    const lng = parseFloat(document.getElementById('lngInput').value);
+    if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+      document.getElementById('locationErrMsg').style.display = 'none';
     }
-  });
-<\/script>
-</body></html>`;
-    const blob = new Blob([leafletHTML], {type:'text/html'});
-    frame.src = URL.createObjectURL(blob);
-    frame.onload = () => { setTimeout(() => { const ov=document.getElementById('mapOverlay'); if(ov) ov.style.pointerEvents='none'; }, 500); };
   }
 
-  window.addEventListener('message', function(e) {
-    if (e.data && e.data.type === 'mapPick') {
-      pickedLat = parseFloat(e.data.lat.toFixed(7));
-      pickedLng = parseFloat(e.data.lng.toFixed(7));
-      document.getElementById('mapSelectedCoords').textContent = pickedLat + ', ' + pickedLng;
-      document.getElementById('mapSelectedPlace').textContent  = 'Drag the pin to fine-tune';
-      const btn = document.getElementById('confirmLocationBtn');
-      btn.disabled = false; btn.style.cursor='pointer'; btn.style.opacity='1';
-      document.getElementById('mapOverlay').style.display = 'none';
+  // Confirm the manually entered lat/lng
+  function confirmLatLng() {
+    const latEl = document.getElementById('latInput');
+    const lngEl = document.getElementById('lngInput');
+    const lat   = parseFloat(latEl.value);
+    const lng   = parseFloat(lngEl.value);
+
+    if (isNaN(lat) || isNaN(lng)) {
+      showToast('Please enter both Latitude and Longitude.', 'error');
+      return;
     }
-  });
+    if (lat < -90 || lat > 90) {
+      showToast('Latitude must be between -90 and 90.', 'error');
+      return;
+    }
+    if (lng < -180 || lng > 180) {
+      showToast('Longitude must be between -180 and 180.', 'error');
+      return;
+    }
 
-  async function searchMapLocation() {
-    const q = document.getElementById('mapSearchInput').value.trim();
-    if (!q) return;
-    try {
-      const query = q.toLowerCase().includes('salem') ? q : q + ', Salem, Tamil Nadu';
-      const resp  = await fetch('https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(query) + '&limit=1&countrycodes=in', {headers:{'Accept-Language':'en'}});
-      const data  = await resp.json();
-      if (data && data.length > 0) {
-        document.getElementById('mapFrame').contentWindow.postMessage({type:'panTo',lat:parseFloat(data[0].lat),lng:parseFloat(data[0].lon)},'*');
-        document.getElementById('mapSelectedPlace').textContent = data[0].display_name;
-      } else { showToast('Location not found. Try a different search.','error'); }
-    } catch(err) { showToast('Search failed. Check internet connection.','error'); }
-  }
+    pickedLat = parseFloat(lat.toFixed(7));
+    pickedLng = parseFloat(lng.toFixed(7));
 
-  function confirmLocation() {
-    if (pickedLat === null) return;
-    document.getElementById('latInput').value = pickedLat;
-    document.getElementById('lngInput').value = pickedLng;
-    document.getElementById('locationDisplay').textContent = 'Location selected ✓';
-    document.getElementById('locationDisplay').style.color = 'var(--success)';
+    document.getElementById('locationDisplay').textContent    = 'Location confirmed ✓';
+    document.getElementById('locationDisplay').style.color    = 'var(--success)';
     document.getElementById('locationDisplay').style.fontStyle = 'normal';
-    document.getElementById('locationCoords').textContent = '📍 ' + pickedLat + ', ' + pickedLng;
-    document.getElementById('locationCoords').style.display = 'block';
+    document.getElementById('locationCoords').textContent     = '📍 ' + pickedLat + ', ' + pickedLng;
+    document.getElementById('locationCoords').style.display   = 'block';
     document.getElementById('clearLocationBtn').style.display = 'inline';
-    document.getElementById('locationErrMsg').style.display = 'none';
-    closeMapPicker();
+    document.getElementById('locationErrMsg').style.display   = 'none';
+
     showToast('✅ Location saved: ' + pickedLat + ', ' + pickedLng, 'success');
   }
 
   function clearLocation() {
-    pickedLat = null; pickedLng = null;
-    document.getElementById('latInput').value = '';
-    document.getElementById('lngInput').value = '';
-    document.getElementById('locationDisplay').textContent = 'No location selected';
-    document.getElementById('locationDisplay').style.color = 'var(--muted)';
+    pickedLat = null;
+    pickedLng = null;
+    document.getElementById('latInput').value                  = '';
+    document.getElementById('lngInput').value                  = '';
+    document.getElementById('locationDisplay').textContent     = 'No location selected';
+    document.getElementById('locationDisplay').style.color     = 'var(--muted)';
     document.getElementById('locationDisplay').style.fontStyle = 'italic';
-    document.getElementById('locationCoords').style.display = 'none';
-    document.getElementById('clearLocationBtn').style.display = 'none';
-  }
-
-  function closeMapPicker() {
-    document.getElementById('mapPickerModal').style.display = 'none';
-    document.body.style.overflow = '';
-    const btn = document.getElementById('confirmLocationBtn');
-    btn.disabled=true; btn.style.cursor='not-allowed'; btn.style.opacity='0.5';
-    document.getElementById('mapOverlay').style.display='flex';
-    document.getElementById('mapSelectedCoords').textContent='— click map —';
-    document.getElementById('mapSelectedPlace').textContent='';
-  }
-
-  document.getElementById('mapPickerModal').addEventListener('click', function(e) {
-    if (e.target === this) closeMapPicker();
-  });
+    document.getElementById('locationCoords').style.display    = 'none';
+    document.getElementById('clearLocationBtn').style.display  = 'none';
+  };
 
   // ── SUGGESTION DROPDOWN POSITIONING (body-level, escapes overflow:hidden) ──
 
