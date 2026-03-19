@@ -478,11 +478,11 @@
         </div>
         <div class="field col-span-2" style="position:relative;">
           <label>Name of FL2/FL3 Licensee <span class="req">*</span></label>
-          <div style="position:relative;">
+          <div style="position:relative;" id="licenseeInputWrap">
             <input type="text" name="licensee_name" id="licensee_name" placeholder="Type hotel name to search or enter new…" required autocomplete="off"/>
             <span id="fetchSpinner" style="display:none;position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:13px;color:var(--muted);">⏳</span>
+            <div id="licenseeSuggestions" style="display:none;position:absolute;left:0;right:0;top:calc(100% + 2px);z-index:9999;background:#fff;border:1.5px solid var(--primary);border-radius:0 0 8px 8px;max-height:240px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,0.18);"></div>
           </div>
-          <div id="licenseeSuggestions" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:1000;background:#fff;border:1.5px solid var(--primary);border-top:none;border-radius:0 0 8px 8px;max-height:220px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,0.13);"></div>
           <span class="hint" id="autofillHint" style="color:var(--success);display:none;">✅ Existing record loaded — editing mode</span>
           <span class="err-msg">Licensee name is required</span>
         </div>
@@ -1483,7 +1483,8 @@
   document.querySelectorAll('input, textarea').forEach(el => {
     if (SKIP_TYPES.includes(el.type)) return;
     if (el.name === 'email') return;
-    if (el.id === 'tinInput') return; // TIN is digits only, handled separately
+    if (el.id === 'tinInput') return;       // digits only
+    if (el.id === 'licensee_name') return;  // autocomplete field — skip uppercase transform
     el.style.textTransform = 'uppercase';
     el.addEventListener('input', function() {
       const s = this.selectionStart, e2 = this.selectionEnd;
@@ -1556,16 +1557,19 @@
     });
   }
 
-  // Use a dedicated listener on the nameInput that runs AFTER the uppercase transform
-  // We use setTimeout(0) to let the uppercase input handler fire first
+  // nameInput suggestion — fires directly, no conflict with uppercase anymore
   nameInput.addEventListener('input', function() {
     autofillHint.style.display = 'none';
-    const self = this;
-    setTimeout(() => {
-      const q = self.value.trim().toUpperCase();
-      if (q.length < 1) { hideSuggestions(); return; }
-      triggerSuggest(q);
-    }, 0);
+    const q = this.value.trim().toUpperCase();
+    if (q.length < 1) { hideSuggestions(); return; }
+    triggerSuggest(q);
+  });
+
+  // Uppercase the licensee name after user finishes typing (on blur)
+  nameInput.addEventListener('blur', function() {
+    if (!suggestBox.matches(':hover')) {
+      this.value = this.value.toUpperCase();
+    }
   });
 
   nameInput.addEventListener('focus', function() {
@@ -1607,7 +1611,8 @@
   }
 
   document.addEventListener('click', e => {
-    if (!nameInput.contains(e.target) && !suggestBox.contains(e.target)) {
+    const wrap = document.getElementById('licenseeInputWrap');
+    if (!wrap || !wrap.contains(e.target)) {
       hideSuggestions();
     }
   });
