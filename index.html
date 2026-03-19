@@ -962,7 +962,7 @@
   </div>
 
   <div class="submit-area">
-    <button type="submit" class="btn-submit" id="submitBtn">Submit Registration</button>
+    <button type="submit" class="btn-submit" id="submitBtn">Submit</button>
   </div>
 
 </form>
@@ -1423,10 +1423,12 @@
       return;
     }
 
-    // Warn if not signed in (but still allow submit)
+    // Require Google sign-in before submit
     if (!googleUser) {
-      const proceed = confirm('⚠️ You are not signed in with Google.\nYour edit will be recorded as "Unknown / Not signed in".\n\nContinue anyway?');
-      if (!proceed) return;
+      showToast('Please sign in with Google to submit.', 'error');
+      const bar = document.getElementById('gSignInBar');
+      if (bar) bar.scrollIntoView({ behavior:'smooth', block:'center' });
+      return;
     }
 
     const btn = document.getElementById('submitBtn');
@@ -1439,14 +1441,9 @@
     fd.forEach((v, k) => { data[k] = v; });
     data.submitted_at = new Date().toLocaleString('en-IN', { timeZone:'Asia/Kolkata' });
 
-    // Attach Google user info for audit trail
-    if (googleUser) {
-      data.edited_by_name  = googleUser.name;
-      data.edited_by_email = googleUser.email;
-    } else {
-      data.edited_by_name  = 'Unknown';
-      data.edited_by_email = 'Not signed in';
-    }
+    // Attach Google user info for audit trail (sign-in is required above)
+    data.edited_by_name  = googleUser.name;
+    data.edited_by_email = googleUser.email;
 
     // If autofill hint is visible, this is an EDIT of existing record
     data.action = (document.getElementById('autofillHint').style.display !== 'none')
@@ -1474,13 +1471,13 @@
       } else {
         showToast('Error: ' + (result.message || 'Submission failed.'), 'error');
         btn.disabled = false;
-        btn.innerHTML = 'Submit Registration';
+        btn.innerHTML = 'Submit';
       }
     } catch (err) {
       showToast('Network error. Please check the Apps Script URL and try again.', 'error');
       console.error(err);
       btn.disabled = false;
-      btn.innerHTML = 'Submit Registration';
+      btn.innerHTML = 'Submit';
     }
   });
 
@@ -1493,7 +1490,7 @@
     clearLocation();
     document.getElementById('successOverlay').classList.remove('show');
     document.getElementById('submitBtn').disabled = false;
-    document.getElementById('submitBtn').innerHTML = 'Submit Registration';
+    document.getElementById('submitBtn').innerHTML = 'Submit';
     window.scrollTo({ top:0, behavior:'smooth' });
   }
 
