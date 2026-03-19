@@ -1015,6 +1015,8 @@
 </div>
 
 
+<script>
+
   // ══════════════════════════════════════════════════════
   //  CONFIGURATION
   // ══════════════════════════════════════════════════════
@@ -1721,27 +1723,32 @@
 
   function loadMapEmbed(lat, lng, q) {
     const frame = document.getElementById('mapFrame');
-    const existingMarker = pickedLat ? `marker = L.marker([${pickedLat||0},${pickedLng||0}],{draggable:true}).addTo(map);
-    marker.on('dragend',function(){ var p=marker.getLatLng(); window.parent.postMessage({type:'mapPick',lat:p.lat,lng:p.lng},'*'); });` : '';
-    const leafletHTML = `<!DOCTYPE html>
-<html><head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"><\/script>
-<style>html,body,#map{margin:0;padding:0;height:100%;width:100%;}.leaflet-control-attribution{font-size:9px!important;}</style>
-</head><body>
-<div id="map"></div>
-<script>
-  var map = L.map('map').setView([${lat},${lng}], 15);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap contributors',maxZoom:19}).addTo(map);
-  var marker = null;
-  ${existingMarker}
-  map.on('click', function(e){
-    if(marker){map.removeLayer(marker);}
-    marker=L.marker([e.latlng.lat,e.latlng.lng],{draggable:true}).addTo(map);
-    marker.on('dragend',function(){ var p=marker.getLatLng(); window.parent.postMessage({type:'mapPick',lat:p.lat,lng:p.lng},'*'); });
-    window.parent.postMessage({type:'mapPick',lat:e.latlng.lat,lng:e.latlng.lng},'*');
+    const existingMarkerCode = pickedLat
+      ? 'marker=L.marker([' + (pickedLat||0) + ',' + (pickedLng||0) + '],{draggable:true}).addTo(map);' +
+        'marker.on("dragend",function(){var p=marker.getLatLng();window.parent.postMessage({type:"mapPick",lat:p.lat,lng:p.lng},"*");});'
+      : '';
+    const S = 'scr'+'ipt';
+    const lines = [
+      '<!DOCTYPE html><html><head>',
+      '<meta charset="UTF-8"/>',
+      '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>',
+      '<' + S + ' src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></' + S + '>',
+      '<style>html,body,#map{margin:0;padding:0;height:100%;width:100%;}.leaflet-control-attribution{font-size:9px!important;}</style>',
+      '</head><body><div id="map"></div>',
+      '<' + S + '>',
+      'var map=L.map("map").setView([' + lat + ',' + lng + '],15);',
+      'L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{attribution:"\u00a9 OpenStreetMap",maxZoom:19}).addTo(map);',
+      'var marker=null;',
+      existingMarkerCode,
+      'map.on("click",function(e){if(marker){map.removeLayer(marker);}marker=L.marker([e.latlng.lat,e.latlng.lng],{draggable:true}).addTo(map);marker.on("dragend",function(){var p=marker.getLatLng();window.parent.postMessage({type:"mapPick",lat:p.lat,lng:p.lng},"*");});window.parent.postMessage({type:"mapPick",lat:e.latlng.lat,lng:e.latlng.lng},"*");});',
+      'window.addEventListener("message",function(e){if(e.data&&e.data.type==="panTo"){map.setView([e.data.lat,e.data.lng],16);if(marker){map.removeLayer(marker);}marker=L.marker([e.data.lat,e.data.lng],{draggable:true}).addTo(map);marker.on("dragend",function(){var p=marker.getLatLng();window.parent.postMessage({type:"mapPick",lat:p.lat,lng:p.lng},"*");});window.parent.postMessage({type:"mapPick",lat:e.data.lat,lng:e.data.lng},"*");}});',
+      '</' + S + '>',
+      '</body></html>'
+    ];
+    const html = lines.join('\n');
+    const blob = new Blob([html], {type:'text/html'});
+    frame.src = URL.createObjectURL(blob);
+    frame.onload = () => { setTimeout(() => { const ov=document.getElementById('mapOverlay'); if(ov) ov.style.pointerEvents='none'; },500); };
   });
   window.addEventListener('message',function(e){
     if(e.data&&e.data.type==='panTo'){
