@@ -1566,99 +1566,111 @@
   })();
 
   // ── SUGGESTION DROPDOWN ──
-  // suggestBox lives on <body> (declared later) to escape section-card overflow:hidden
+  // The #licenseeSuggestions div lives on <body> to escape section-card overflow:hidden.
+  // It uses position:fixed positioned under the input via getBoundingClientRect().
+
   const nameInput    = document.getElementById('licensee_name');
   const autofillHint = document.getElementById('autofillHint');
-  let activeIdx = -1;
+  let activeIdx      = -1;
 
-  function getSuggestBox() { return document.getElementById('licenseeSuggestions'); }
+  function getSuggestBox() {
+    return document.getElementById('licenseeSuggestions');
+  }
 
-  function positionDropdown() {
+  function positionSuggest() {
     const sb    = getSuggestBox();
     const input = document.getElementById('licensee_name');
     if (!sb || !input) return;
-    const rect = input.getBoundingClientRect();
-    sb.style.left  = rect.left + window.scrollX + 'px';
-    sb.style.top   = (rect.bottom + window.scrollY + 2) + 'px';
-    sb.style.width = rect.width + 'px';
-    sb.style.position = 'absolute';
+    const r = input.getBoundingClientRect();
+    sb.style.left  = r.left + 'px';
+    sb.style.top   = (r.bottom + 2) + 'px';
+    sb.style.width = r.width + 'px';
   }
 
   function triggerSuggest(q) {
     const sb = getSuggestBox();
-    if (!sb) return;
-    if (!q) { hideSuggestions(); return; }
+    if (!sb || !q) { hideSuggestions(); return; }
 
-    suggestList = allRecords.filter(r =>
-      (r.licensee_name || '').toUpperCase().includes(q)
-    );
+    suggestList = allRecords.filter(function(r) {
+      return (r.licensee_name || '').toUpperCase().includes(q);
+    });
 
     if (!suggestList.length) {
-      sb.innerHTML = '<div style="padding:10px 14px;font-size:12px;color:#888;">No matching hotels found</div>';
+      sb.innerHTML = '<div style="padding:10px 14px;font-size:13px;color:#888;">No matching hotels found</div>';
     } else {
-      sb.innerHTML = suggestList.slice(0, 15).map((r, i) => {
-        const name = escHtml(r.licensee_name || '');
-        const hi   = name.replace(
+      sb.innerHTML = suggestList.slice(0, 15).map(function(r, i) {
+        var name = escHtml(r.licensee_name || '');
+        var hi   = name.replace(
           new RegExp('(' + escRegex(q) + ')', 'gi'),
-          '<strong style="color:#1a3a5c;background:rgba(26,58,92,0.1);border-radius:2px;padding:0 1px;">$1</strong>'
+          '<strong style="color:#1a3a5c;background:rgba(26,58,92,0.12);border-radius:2px;padding:0 1px;">$1</strong>'
         );
-        const sub = [r.license_no, r.revenue_district, r.type_of_licensee].filter(Boolean).join('  ·  ');
-        return `<div class="suggest-item" data-idx="${i}"
-          style="padding:10px 14px;cursor:pointer;border-bottom:1px solid #eef0f4;font-size:13px;line-height:1.4;">
-          <div style="font-weight:600;">${hi}</div>
-          ${sub ? `<div style="font-size:11px;color:#888;margin-top:2px;">${escHtml(sub)}</div>` : ''}
-        </div>`;
+        var sub = [r.license_no, r.revenue_district, r.type_of_licensee].filter(Boolean).join('  ·  ');
+        return '<div class="suggest-item" data-idx="' + i + '" style="padding:10px 14px;cursor:pointer;border-bottom:1px solid #eef0f4;font-size:13px;line-height:1.4;">'
+          + '<div style="font-weight:600;">' + hi + '</div>'
+          + (sub ? '<div style="font-size:11px;color:#888;margin-top:2px;">' + escHtml(sub) + '</div>' : '')
+          + '</div>';
       }).join('');
-      sb.querySelectorAll('.suggest-item').forEach(el => {
-        el.addEventListener('mouseenter', () => el.style.background = '#f0f4fa');
-        el.addEventListener('mouseleave', () => el.style.background = '');
-        el.addEventListener('mousedown', e => { e.preventDefault(); selectRecord(suggestList[+el.dataset.idx]); });
+
+      sb.querySelectorAll('.suggest-item').forEach(function(el) {
+        el.addEventListener('mouseenter', function() { el.style.background = '#f0f4fa'; });
+        el.addEventListener('mouseleave', function() { el.style.background = ''; });
+        el.addEventListener('mousedown',  function(e) {
+          e.preventDefault();
+          selectRecord(suggestList[+el.dataset.idx]);
+        });
       });
     }
 
-    positionDropdown();
+    positionSuggest();
     sb.style.display = 'block';
     activeIdx = -1;
   }
 
-  // Input: trigger suggestions immediately
+  function hideSuggestions() {
+    var sb = getSuggestBox();
+    if (sb) { sb.style.display = 'none'; sb.innerHTML = ''; }
+    activeIdx = -1;
+  }
+
+  // ── Input: fire suggestions on every keystroke ──
   nameInput.addEventListener('input', function() {
     autofillHint.style.display = 'none';
-    const q = this.value.trim().toUpperCase();
-    if (q.length < 1) { hideSuggestions(); return; }
+    var q = this.value.trim().toUpperCase();
+    if (!q) { hideSuggestions(); return; }
     triggerSuggest(q);
   });
 
-  // Blur: uppercase + hide dropdown (unless hovering it)
+  // ── Blur: hide after 150ms (allows mousedown on item to fire first) ──
   nameInput.addEventListener('blur', function() {
-    setTimeout(() => {
-      const sb = getSuggestBox();
+    var self = this;
+    setTimeout(function() {
+      var sb = getSuggestBox();
       if (sb && sb.matches(':hover')) return;
-      this.value = this.value.toUpperCase();
+      self.value = self.value.toUpperCase();
       hideSuggestions();
     }, 150);
   });
 
-  // Focus: re-show suggestions if text already present
+  // ── Focus: re-show if text present ──
   nameInput.addEventListener('focus', function() {
-    const q = this.value.trim().toUpperCase();
-    if (q.length >= 1) triggerSuggest(q);
+    var q = this.value.trim().toUpperCase();
+    if (q) triggerSuggest(q);
   });
 
-  // Keyboard navigation
+  // ── Keyboard navigation ──
   nameInput.addEventListener('keydown', function(e) {
-    const sb    = getSuggestBox();
-    const items = sb ? sb.querySelectorAll('.suggest-item') : [];
+    var sb    = getSuggestBox();
+    var items = sb ? sb.querySelectorAll('.suggest-item') : [];
     if (!items.length) return;
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       activeIdx = Math.min(activeIdx + 1, items.length - 1);
-      items.forEach((el, i) => el.style.background = i === activeIdx ? '#dde4f0' : '');
+      items.forEach(function(el, i) { el.style.background = i === activeIdx ? '#dde4f0' : ''; });
       if (items[activeIdx]) items[activeIdx].scrollIntoView({ block: 'nearest' });
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       activeIdx = Math.max(activeIdx - 1, 0);
-      items.forEach((el, i) => el.style.background = i === activeIdx ? '#dde4f0' : '');
+      items.forEach(function(el, i) { el.style.background = i === activeIdx ? '#dde4f0' : ''; });
       if (items[activeIdx]) items[activeIdx].scrollIntoView({ block: 'nearest' });
     } else if (e.key === 'Enter' && activeIdx >= 0) {
       e.preventDefault();
@@ -1668,28 +1680,24 @@
     }
   });
 
-  function hideSuggestions() {
-    const sb = getSuggestBox();
-    if (sb) { sb.style.display = 'none'; sb.innerHTML = ''; }
-    activeIdx = -1;
-  }
-
-  // Close when clicking outside
-  document.addEventListener('click', e => {
-    const wrap = document.getElementById('licenseeInputWrap');
-    const sb   = getSuggestBox();
+  // ── Close on outside click ──
+  document.addEventListener('click', function(e) {
+    var wrap = document.getElementById('licenseeInputWrap');
+    var sb   = getSuggestBox();
     if (wrap && sb && !wrap.contains(e.target) && !sb.contains(e.target)) {
       hideSuggestions();
     }
   });
 
-  // Reposition on scroll/resize
-  window.addEventListener('scroll', () => { if (getSuggestBox()?.style.display !== 'none') positionDropdown(); }, true);
-  window.addEventListener('resize', () => { if (getSuggestBox()?.style.display !== 'none') positionDropdown(); });
-
-    }
+  // ── Reposition on scroll/resize ──
+  window.addEventListener('scroll', function() {
+    var sb = getSuggestBox();
+    if (sb && sb.style.display !== 'none') positionSuggest();
+  }, true);
+  window.addEventListener('resize', function() {
+    var sb = getSuggestBox();
+    if (sb && sb.style.display !== 'none') positionSuggest();
   });
-
   // ── AUTOFILL FORM ──
   function selectRecord(r) {
     hideSuggestions();
@@ -1890,24 +1898,6 @@
   });
 
   // ── SUGGESTION DROPDOWN POSITIONING (body-level, escapes overflow:hidden) ──
-  const suggestBox = document.getElementById('licenseeSuggestions');
-
-  function positionSuggestBox() {
-    const input = document.getElementById('licensee_name');
-    if (!input) return;
-    const rect = input.getBoundingClientRect();
-    suggestBox.style.left   = rect.left + 'px';
-    suggestBox.style.top    = (rect.bottom + 2) + 'px';
-    suggestBox.style.width  = rect.width + 'px';
-  }
-
-  // Reposition on scroll/resize
-  window.addEventListener('scroll', function() {
-    if (suggestBox.style.display !== 'none') positionSuggestBox();
-  }, true);
-  window.addEventListener('resize', function() {
-    if (suggestBox.style.display !== 'none') positionSuggestBox();
-  });
 
   // ── INIT ──
   updateProgress();
